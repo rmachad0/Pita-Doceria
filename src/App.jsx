@@ -363,9 +363,9 @@ export default function App() {
     setCustomPrice('')
   }
 
-  const addIng    = () => { idSeq++; setIngs(p => [...p, { id: idSeq, name: 'Novo Ingrediente', pkgPrice: 0, pkgWeight: 500, used: 0 }]) }
+  const addIng    = () => { idSeq++; setIngs(p => [...p, { id: idSeq, name: 'Novo Ingrediente', pkgPrice: 0, pkgWeight: 500, used: 0, unit: 'g' }]) }
   const removeIng = (id) => setIngs(p => p.filter(i => i.id !== id))
-  const updateIng = (id, f, v) => setIngs(p => p.map(i => i.id === id ? { ...i, [f]: f === 'name' ? v : (parseFloat(v) || 0) } : i))
+  const updateIng = (id, f, v) => setIngs(p => p.map(i => i.id === id ? { ...i, [f]: (f === 'name' || f === 'unit') ? v : (parseFloat(v) || 0) } : i))
   const updFixed  = (f, v) => setFixed(p => ({ ...p, [f]: parseFloat(v) || 0 }))
   const updPedido = (f, v) => setNovoPedido(p => ({ ...p, [f]: v }))
 
@@ -512,8 +512,8 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="grid gap-1.5 mb-2 px-2.5 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 90px 34px', background: C.grayLt, color: C.feldgrau }}>
-                  {['Ingrediente', 'Preço Pacote', 'Peso (g/ml)', 'Qtd Usada', 'Custo Real', ''].map((h, i) => (
+                <div className="grid gap-1.5 mb-2 px-2.5 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 58px 90px 34px', background: C.grayLt, color: C.feldgrau }}>
+                  {['Ingrediente', 'Preço Pacote', 'Peso/Vol.', 'Qtd Usada', 'Unid.', 'Custo Real', ''].map((h, i) => (
                     <span key={i}>{h}</span>
                   ))}
                 </div>
@@ -522,11 +522,21 @@ export default function App() {
                   const uc = ing.pkgWeight > 0 ? (ing.pkgPrice / ing.pkgWeight) * ing.used : 0
                   return (
                     <div key={ing.id} className="grid gap-1.5 mb-1.5 px-2.5 py-1.5 rounded-md border items-center"
-                      style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 90px 34px', background: idx % 2 === 0 ? C.white : C.offWhite, borderColor: C.grayLt }}>
+                      style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 58px 90px 34px', background: idx % 2 === 0 ? C.white : C.offWhite, borderColor: C.grayLt }}>
                       <Input value={ing.name} onChange={e => updateIng(ing.id, 'name', e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }} />
                       <Input type="number" step="0.01" value={ing.pkgPrice} onChange={e => updateIng(ing.id, 'pkgPrice', e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }} />
                       <Input type="number" value={ing.pkgWeight} onChange={e => updateIng(ing.id, 'pkgWeight', e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }} />
                       <Input type="number" value={ing.used} onChange={e => updateIng(ing.id, 'used', e.target.value)} style={{ fontSize: 12, padding: '5px 8px' }} />
+                      <select
+                        value={ing.unit || 'g'}
+                        onChange={e => updateIng(ing.id, 'unit', e.target.value)}
+                        className="w-full rounded-md border text-center cursor-pointer"
+                        style={{ fontSize: 12, padding: '5px 2px', borderColor: C.grayMid, color: C.textDark, background: C.white }}
+                      >
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                      </select>
                       <span className="font-bold text-[13px]" style={{ color: C.feldgrau }}>{brl(uc)}</span>
                       <button onClick={() => removeIng(ing.id)} className="w-[30px] h-[30px] rounded flex items-center justify-center text-xs border" style={{ background: C.grayLt, borderColor: C.grayMid, color: C.textMuted }}>
                         <Trash2 size={12} />
