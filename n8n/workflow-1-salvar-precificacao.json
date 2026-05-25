@@ -1,0 +1,93 @@
+{
+  "name": "PiTa® — Salvar Precificação no Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pita-salvar-precificacao",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook — Receber Dados",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "pita-salvar-precificacao"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai e valida os dados vindos do app React\nconst body = $input.first().json.body;\n\nconst produto = body.productName || 'Não informado';\nconst custoBase = parseFloat(body.baseUnitCost) || 0;\nconst precoSugerido = parseFloat(body.suggestedPrice) || 0;\nconst precoManual = parseFloat(body.customPrice) || 0;\nconst precoFinal = precoManual > 0 ? precoManual : precoSugerido;\nconst margemLiquida = parseFloat(body.netMarginPct) || 0;\nconst canal = body.channel === 'ifood' ? 'iFood (25%)' : 'Venda Direta (0%)';\nconst margem = parseFloat(body.margin) || 30;\nconst imposto = parseFloat(body.tax) || 6;\n\n// Classificação de saúde da margem\nlet saudeLabel = '';\nif (margemLiquida >= 25) saudeLabel = '✅ Saudável';\nelse if (margemLiquida >= 11) saudeLabel = '⚠️ Alerta';\nelse saudeLabel = '🚨 Perigosa';\n\nconst now = new Date();\nconst dataHora = now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nreturn [{\n  json: {\n    dataHora,\n    produto,\n    custoBase: custoBase.toFixed(2),\n    precoFinal: precoFinal.toFixed(2),\n    margemLiquida: margemLiquida.toFixed(1),\n    saudeLabel,\n    canal,\n    margemDesejada: margem,\n    impostoNF: imposto,\n    alertar: margemLiquida < 10\n  }\n}];"
+      },
+      "id": "code-processar",
+      "name": "Processar e Validar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "SEU_GOOGLE_SHEET_ID_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Precificações",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data/Hora":        "={{ $json.dataHora }}",
+            "Produto":          "={{ $json.produto }}",
+            "Custo Base (R$)":  "={{ $json.custoBase }}",
+            "Preço Final (R$)": "={{ $json.precoFinal }}",
+            "Margem Líq. (%)":  "={{ $json.margemLiquida }}",
+            "Saúde":            "={{ $json.saudeLabel }}",
+            "Canal":            "={{ $json.canal }}",
+            "Margem Des. (%)":  "={{ $json.margemDesejada }}",
+            "Imposto NF (%)":   "={{ $json.impostoNF }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-salvar",
+      "name": "Salvar no Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Precificação salva com sucesso!', produto: $json.produto, precoFinal: $json.precoFinal }) }}",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Responder ao App",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Receber Dados": {
+      "main": [[ { "node": "Processar e Validar Dados", "type": "main", "index": 0 } ]]
+    },
+    "Processar e Validar Dados": {
+      "main": [[ { "node": "Salvar no Google Sheets", "type": "main", "index": 0 } ]]
+    },
+    "Salvar no Google Sheets": {
+      "main": [[ { "node": "Responder ao App", "type": "main", "index": 0 } ]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "pita-doceria" }],
+  "meta": {
+    "description": "Recebe dados de precificação do app React da PiTa® via webhook e salva automaticamente no Google Sheets com classificação de saúde da margem."
+  }
+}

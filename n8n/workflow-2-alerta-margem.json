@@ -1,0 +1,97 @@
+{
+  "name": "PiTa® — Alerta de Margem Perigosa (WhatsApp)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pita-alerta-margem",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-alerta",
+      "name": "Webhook — Alerta de Margem",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "pita-alerta-margem"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-margin",
+              "leftValue": "={{ $json.body.netMarginPct }}",
+              "rightValue": 10,
+              "operator": { "type": "number", "operation": "lt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-margem-perigosa",
+      "name": "Margem < 10%?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst produto = body.productName || 'Produto';\nconst margem = parseFloat(body.netMarginPct || 0).toFixed(1);\nconst precoAtual = parseFloat(body.customPrice || body.suggestedPrice || 0).toFixed(2);\nconst custoBase = parseFloat(body.baseUnitCost || 0).toFixed(2);\nconst canal = body.channel === 'ifood' ? 'iFood' : 'Venda Direta';\n\n// Calcula preço mínimo para 15% de margem saudável\nconst ded = (parseFloat(body.margin || 30) + parseFloat(body.tax || 6) + (body.channel === 'ifood' ? 25 : 0)) / 100;\nconst precoSugerido = ded < 1 ? (parseFloat(body.baseUnitCost || 0) / (1 - ded)).toFixed(2) : 'N/A';\n\nconst mensagem = `🚨 *ALERTA PiTa® — MARGEM PERIGOSA*\n\n*Produto:* ${produto}\n*Canal:* ${canal}\n*Preço praticado:* R$ ${precoAtual}\n*Custo base:* R$ ${custoBase}\n*Margem líquida atual:* ${margem}% ⚠️\n\n*Preço sugerido ideal:* R$ ${precoSugerido}\n\nReajuste o preço ou reduza custos urgentemente para proteger a saúde financeira da PiTa®!`;\n\nreturn [{ json: { mensagem, produto, margem, precoAtual, precoSugerido } }];"
+      },
+      "id": "code-mensagem-alerta",
+      "name": "Montar Mensagem de Alerta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "phoneNumberId": "SEU_WHATSAPP_PHONE_ID",
+        "recipientPhoneNumber": "SEU_NUMERO_WHATSAPP",
+        "textBody": "={{ $json.mensagem }}",
+        "additionalFields": {}
+      },
+      "id": "whatsapp-alerta",
+      "name": "Enviar Alerta no WhatsApp",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"alertSent\": false, \"reason\": \"Margem acima de 10% — sem alerta necessário\" }",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Sem Alerta Necessário",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 420]
+    }
+  ],
+  "connections": {
+    "Webhook — Alerta de Margem": {
+      "main": [[ { "node": "Margem < 10%?", "type": "main", "index": 0 } ]]
+    },
+    "Margem < 10%?": {
+      "main": [
+        [ { "node": "Montar Mensagem de Alerta", "type": "main", "index": 0 } ],
+        [ { "node": "Sem Alerta Necessário",     "type": "main", "index": 0 } ]
+      ]
+    },
+    "Montar Mensagem de Alerta": {
+      "main": [[ { "node": "Enviar Alerta no WhatsApp", "type": "main", "index": 0 } ]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "pita-doceria" }],
+  "meta": {
+    "description": "Dispara um alerta imediato via WhatsApp quando o app de precificação detecta margem líquida abaixo de 10%. Enviado direto para o celular da proprietária."
+  }
+}

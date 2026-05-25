@@ -1,0 +1,101 @@
+{
+  "name": "PiTa® — Leitura de Dados (Histórico + Pedidos)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "pita-ler-dados",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-ler",
+      "name": "Webhook — Ler Dados",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "pita-ler-dados"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Identifica qual aba ler com base no query param ?tipo=precificacoes|pedidos\nconst tipo = ($input.first().json.query?.tipo || 'precificacoes').toLowerCase();\nconst aba = tipo === 'pedidos' ? 'Pedidos' : 'Precificações';\nreturn [{ json: { aba } }];"
+      },
+      "id": "code-rotear",
+      "name": "Rotear por Tipo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "SEU_GOOGLE_SHEET_ID_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.aba }}",
+          "mode": "name"
+        },
+        "options": {
+          "returnAllMatches": true
+        }
+      },
+      "id": "sheets-ler",
+      "name": "Ler Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formata e retorna os dados como JSON limpo\nconst rows = $input.all().map(i => i.json);\n\n// Ordena por Data/Hora decrescente (mais recente primeiro)\nrows.sort((a, b) => {\n  const da = new Date(a['Data/Hora'] || 0);\n  const db = new Date(b['Data/Hora'] || 0);\n  return db - da;\n});\n\nreturn [{ json: { success: true, total: rows.length, data: rows } }];"
+      },
+      "id": "code-formatar",
+      "name": "Formatar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-dados",
+      "name": "Responder com Dados",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Ler Dados": {
+      "main": [[ { "node": "Rotear por Tipo", "type": "main", "index": 0 } ]]
+    },
+    "Rotear por Tipo": {
+      "main": [[ { "node": "Ler Google Sheets", "type": "main", "index": 0 } ]]
+    },
+    "Ler Google Sheets": {
+      "main": [[ { "node": "Formatar Resposta", "type": "main", "index": 0 } ]]
+    },
+    "Formatar Resposta": {
+      "main": [[ { "node": "Responder com Dados", "type": "main", "index": 0 } ]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "pita-doceria" }],
+  "meta": {
+    "description": "Webhook GET que lê o Google Sheets e retorna histórico de precificações ou pedidos para o app React. Use ?tipo=precificacoes ou ?tipo=pedidos."
+  }
+}

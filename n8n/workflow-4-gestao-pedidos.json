@@ -1,0 +1,127 @@
+{
+  "name": "PiTa® — Gestão de Pedidos (Entrada → Confirmação)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pita-novo-pedido",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-pedido",
+      "name": "Webhook — Novo Pedido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 320],
+      "webhookId": "pita-novo-pedido"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processa dados do pedido\nconst body = $input.first().json.body;\n\nconst nomeCliente   = body.clientName   || 'Cliente';\nconst telefone      = body.phone        || '';\nconst produto       = body.product      || 'Produto não especificado';\nconst quantidade    = parseInt(body.qty) || 1;\nconst valorUnit     = parseFloat(body.unitPrice) || 0;\nconst valorTotal    = (valorUnit * quantidade).toFixed(2);\nconst dataEntrega   = body.deliveryDate || 'A combinar';\nconst observacoes   = body.notes        || 'Nenhuma';\nconst formaPagto    = body.payment      || 'Pix';\n\nconst agora = new Date();\nconst numeroPedido = `PIT-${agora.getFullYear()}${String(agora.getMonth()+1).padStart(2,'0')}${String(agora.getDate()).padStart(2,'0')}-${Math.floor(Math.random()*900+100)}`;\nconst dataHora = agora.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\n// Mensagem de confirmação para o cliente\nconst msgCliente = `🍬 *Pedido Confirmado — PiTa®*\n\nOlá, *${nomeCliente}*! Seu pedido foi recebido com sucesso ✨\n\n📋 *Nº do Pedido:* ${numeroPedido}\n🎂 *Produto:* ${produto}\n🔢 *Quantidade:* ${quantidade} un.\n💰 *Valor total:* R$ ${valorTotal}\n📅 *Entrega:* ${dataEntrega}\n💳 *Pagamento:* ${formaPagto}\n\nEmbreve entraremos em contato para confirmar os detalhes!\n\n_PiTa® — Qualidade · Criatividade · Paixão_`;\n\n// Mensagem de alerta para equipe\nconst msgEquipe = `🔔 *NOVO PEDIDO PiTa®*\n\n📋 *${numeroPedido}*\n👤 Cliente: ${nomeCliente}\n📞 Telefone: ${telefone}\n🎂 Produto: ${produto} (${quantidade} un.)\n💰 Total: R$ ${valorTotal}\n📅 Entrega: ${dataEntrega}\n📝 Obs: ${observacoes}\n⏰ Recebido em: ${dataHora}`;\n\nreturn [{ json: { numeroPedido, nomeCliente, telefone, produto, quantidade, valorTotal, dataEntrega, dataHora, msgCliente, msgEquipe } }];"
+      },
+      "id": "code-processar-pedido",
+      "name": "Processar Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 320]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "SEU_GOOGLE_SHEET_ID_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Pedidos",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nº Pedido":      "={{ $json.numeroPedido }}",
+            "Data/Hora":      "={{ $json.dataHora }}",
+            "Cliente":        "={{ $json.nomeCliente }}",
+            "Telefone":       "={{ $json.telefone }}",
+            "Produto":        "={{ $json.produto }}",
+            "Quantidade":     "={{ $json.quantidade }}",
+            "Valor Total":    "={{ $json.valorTotal }}",
+            "Entrega":        "={{ $json.dataEntrega }}",
+            "Status":         "Recebido"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-pedido",
+      "name": "Registrar Pedido no Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [680, 320]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "phoneNumberId": "SEU_WHATSAPP_PHONE_ID",
+        "recipientPhoneNumber": "={{ $json.telefone }}",
+        "textBody": "={{ $json.msgCliente }}",
+        "additionalFields": {}
+      },
+      "id": "whatsapp-cliente",
+      "name": "WhatsApp → Confirmação ao Cliente",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "phoneNumberId": "SEU_WHATSAPP_PHONE_ID",
+        "recipientPhoneNumber": "SEU_NUMERO_WHATSAPP",
+        "textBody": "={{ $json.msgEquipe }}",
+        "additionalFields": {}
+      },
+      "id": "whatsapp-equipe",
+      "name": "WhatsApp → Alerta à Equipe",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [900, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, numeroPedido: $json.numeroPedido, message: 'Pedido registrado e cliente notificado!' }) }}",
+        "options": {}
+      },
+      "id": "respond-pedido",
+      "name": "Confirmar Pedido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 320]
+    }
+  ],
+  "connections": {
+    "Webhook — Novo Pedido": {
+      "main": [[ { "node": "Processar Pedido", "type": "main", "index": 0 } ]]
+    },
+    "Processar Pedido": {
+      "main": [[ { "node": "Registrar Pedido no Sheets", "type": "main", "index": 0 } ]]
+    },
+    "Registrar Pedido no Sheets": {
+      "main": [
+        [ { "node": "WhatsApp → Confirmação ao Cliente", "type": "main", "index": 0 } ],
+        [ { "node": "WhatsApp → Alerta à Equipe",        "type": "main", "index": 0 } ]
+      ]
+    },
+    "WhatsApp → Alerta à Equipe": {
+      "main": [[ { "node": "Confirmar Pedido", "type": "main", "index": 0 } ]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "pita-doceria" }],
+  "meta": {
+    "description": "Recebe um novo pedido via webhook, gera número de pedido único, registra no Google Sheets, envia confirmação para o cliente e alerta a equipe da PiTa® via WhatsApp."
+  }
+}

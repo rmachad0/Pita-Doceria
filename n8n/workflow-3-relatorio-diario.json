@@ -1,0 +1,96 @@
+{
+  "name": "PiTa® — Relatório Diário de Vendas (20h)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 20 * * 1-5" }]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron — Toda seg-sex às 20h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "SEU_GOOGLE_SHEET_ID_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Precificações",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "sheets-ler",
+      "name": "Ler Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra apenas registros do dia de hoje\nconst hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });\nconst itens = $input.all().map(i => i.json);\n\n// Filtra registros do dia (Data/Hora começa com a data de hoje)\nconst doDia = itens.filter(i => {\n  const dt = (i['Data/Hora'] || '').split(',')[0].trim();\n  return dt === hoje;\n});\n\nif (doDia.length === 0) {\n  return [{ json: {\n    totalItens: 0,\n    resumo: `📊 *Relatório PiTa® — ${hoje}*\\n\\nNenhuma precificação registrada hoje.`,\n    vazio: true\n  }}];\n}\n\n// Calcula totais\nconst margens = doDia.map(i => parseFloat(i['Margem Líq. (%)'] || 0));\nconst margemMedia = (margens.reduce((a, b) => a + b, 0) / margens.length);\nconst produtos = [...new Set(doDia.map(i => i['Produto']))];\n\nconst saudaveis = doDia.filter(i => parseFloat(i['Margem Líq. (%)'] || 0) >= 25).length;\nconst alerta    = doDia.filter(i => { const m = parseFloat(i['Margem Líq. (%)'] || 0); return m >= 11 && m < 25; }).length;\nconst perigo    = doDia.filter(i => parseFloat(i['Margem Líq. (%)'] || 0) < 11).length;\n\nconst listaProdutos = produtos.map(p => {\n  const item = doDia.find(i => i['Produto'] === p);\n  const saude = item['Saúde'] || '';\n  return `  • ${p} — R$ ${item['Preço Final (R$)']} ${saude}`;\n}).join('\\n');\n\nconst resumo = `📊 *Relatório PiTa® — ${hoje}*\n\n*Total de precificações:* ${doDia.length}\n*Margem média do dia:* ${margemMedia.toFixed(1)}%\n\n*Saúde das margens:*\n  ✅ Saudáveis (≥25%): ${saudaveis}\n  ⚠️ Alerta (11-24%): ${alerta}\n  🚨 Perigosas (<10%): ${perigo}\n\n*Produtos calculados hoje:*\n${listaProdutos}\n\n_Relatório gerado automaticamente por n8n · PiTa® 2026_`;\n\nreturn [{ json: { totalItens: doDia.length, margemMedia: margemMedia.toFixed(1), resumo, vazio: false } }];"
+      },
+      "id": "code-calcular",
+      "name": "Calcular Resumo do Dia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "phoneNumberId": "SEU_WHATSAPP_PHONE_ID",
+        "recipientPhoneNumber": "SEU_NUMERO_WHATSAPP",
+        "textBody": "={{ $json.resumo }}",
+        "additionalFields": {}
+      },
+      "id": "whatsapp-relatorio",
+      "name": "Enviar Relatório no WhatsApp",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [900, 220]
+    },
+    {
+      "parameters": {
+        "sendTo": "SEU_EMAIL@gmail.com",
+        "subject": "=PiTa® — Relatório do dia {{ new Date().toLocaleDateString('pt-BR') }}",
+        "emailType": "text",
+        "message": "={{ $json.resumo }}",
+        "options": {}
+      },
+      "id": "gmail-relatorio",
+      "name": "Enviar Relatório por Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 380]
+    }
+  ],
+  "connections": {
+    "Cron — Toda seg-sex às 20h": {
+      "main": [[ { "node": "Ler Google Sheets", "type": "main", "index": 0 } ]]
+    },
+    "Ler Google Sheets": {
+      "main": [[ { "node": "Calcular Resumo do Dia", "type": "main", "index": 0 } ]]
+    },
+    "Calcular Resumo do Dia": {
+      "main": [
+        [ { "node": "Enviar Relatório no WhatsApp", "type": "main", "index": 0 } ],
+        [ { "node": "Enviar Relatório por Email",   "type": "main", "index": 0 } ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "pita-doceria" }],
+  "meta": {
+    "description": "Todo dia útil às 20h lê as precificações do Google Sheets, calcula resumo de margens e envia por WhatsApp e Gmail para a proprietária da PiTa®."
+  }
+}
