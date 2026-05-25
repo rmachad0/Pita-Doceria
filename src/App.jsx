@@ -385,7 +385,7 @@ export default function App() {
                 Software de Precificação
               </p>
               <p className="text-[13px] font-serif italic" style={{ color: 'rgba(250,189,151,0.65)' }}>
-                Doceria Artesanal · Sinop, MT · 2026
+                Doceria Artesanal
               </p>
             </div>
           </div>
