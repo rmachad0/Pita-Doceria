@@ -985,6 +985,7 @@ export default function App() {
         <div>
           <p className="text-[11px] font-serif italic" style={{ color: C.feldgrauLt }}>Software de Precificação · Sinop, MT · 2026</p>
           <p className="text-[10px]" style={{ color: C.grayMid }}>Qualidade · Criatividade · Paixão · Acolhimento</p>
+          <p className="text-[10px] mt-1" style={{ color: C.grayMid }}>Software criado por Regiane Machado</p>
         </div>
       </div>
     </div>
