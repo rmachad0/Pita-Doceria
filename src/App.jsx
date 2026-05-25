@@ -385,7 +385,7 @@ export default function App() {
                 Software de Precificação
               </p>
               <p className="text-[13px] font-serif italic" style={{ color: 'rgba(250,189,151,0.65)' }}>
-                Doceria Artesanal · Integração Google Sheets · 2026
+                Doceria Artesanal · Sinop, MT · 2026
               </p>
             </div>
           </div>
@@ -983,7 +983,7 @@ export default function App() {
       <div className="flex items-center justify-center gap-4 py-5">
         <PitaLogo width={60} />
         <div>
-          <p className="text-[11px] font-serif italic" style={{ color: C.feldgrauLt }}>Software de Precificação · Supabase · 2026</p>
+          <p className="text-[11px] font-serif italic" style={{ color: C.feldgrauLt }}>Software de Precificação · Sinop, MT · 2026</p>
           <p className="text-[10px]" style={{ color: C.grayMid }}>Qualidade · Criatividade · Paixão · Acolhimento</p>
         </div>
       </div>
