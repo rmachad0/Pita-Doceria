@@ -371,15 +371,15 @@ export default function App() {
 
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen p-4 max-w-[1300px] mx-auto">
+    <div className="min-h-screen p-3 sm:p-4 max-w-[1300px] mx-auto">
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div className="rounded-xl p-6 mb-4 relative overflow-hidden" style={{ background: C.feldgrau }}>
+      <div className="rounded-xl p-4 sm:p-6 mb-4 relative overflow-hidden" style={{ background: C.feldgrau }}>
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-10" style={{ background: C.peach }} />
         <div className="absolute -bottom-6 left-52 w-20 h-20 rounded-full opacity-10" style={{ background: C.asparagus }} />
         <div className="flex justify-between items-center flex-wrap gap-4 relative">
           <div className="flex items-center gap-5">
-            <PitaLogo width={130} />
+            <PitaLogo width={window.innerWidth < 480 ? 90 : 130} />
             <div>
               <p className="text-[11px] font-bold tracking-[3px] uppercase mb-1" style={{ color: C.peachLt }}>
                 Software de Precificação
@@ -389,7 +389,7 @@ export default function App() {
               </p>
             </div>
           </div>
-          <div className="rounded-lg px-6 py-4 text-center border" style={{ background: 'rgba(250,189,151,0.1)', borderColor: 'rgba(250,189,151,0.2)' }}>
+          <div className="rounded-lg px-6 py-4 text-center border w-full sm:w-auto" style={{ background: 'rgba(250,189,151,0.1)', borderColor: 'rgba(250,189,151,0.2)' }}>
             <p className="text-[10px] font-bold uppercase tracking-[1.5px]" style={{ color: C.peachLt }}>Custo / Hora de Estrutura</p>
             <p className="text-4xl font-bold font-serif mt-1" style={{ color: C.peach }}>{brl(cph)}</p>
             <p className="text-[11px] mt-1" style={{ color: 'rgba(250,189,151,0.5)' }}>Total fixo: {brl(totalFixed)}/mês</p>
@@ -455,7 +455,7 @@ export default function App() {
           </Card>
 
           {/* Grid principal */}
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0,1fr) 310px' }}>
+          <div className="grid gap-4 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_310px]">
             {/* LEFT */}
             <div>
               {/* Produto */}
@@ -474,7 +474,7 @@ export default function App() {
                     <option value="personalizado">Outro / Personalizado</option>
                   </Select>
                 </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-[2fr_1fr_1fr_1fr]">
                   <div>
                     <Label>Nome do Produto</Label>
                     <Input value={prodName} onChange={e => setProdName(e.target.value)} />
@@ -512,6 +512,8 @@ export default function App() {
                   </button>
                 </div>
 
+                <div className="overflow-x-auto -mx-2 px-2 pb-1">
+                <div className="min-w-[640px]">
                 <div className="grid gap-1.5 mb-2 px-2.5 py-2 rounded-md text-[9px] font-bold uppercase tracking-widest" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 58px 90px 34px', background: C.grayLt, color: C.feldgrau }}>
                   {['Ingrediente', 'Preço Pacote', 'Peso/Vol.', 'Qtd Usada', 'Unid.', 'Custo Real', ''].map((h, i) => (
                     <span key={i}>{h}</span>
@@ -545,6 +547,7 @@ export default function App() {
                   )
                 })}
 
+                </div></div>
                 <div className="flex justify-end mt-3 px-3 py-2.5 rounded-lg" style={{ background: C.feldgrau }}>
                   <span className="text-[12px] font-semibold" style={{ color: C.peachLt }}>
                     Total ingredientes (lote):{' '}
