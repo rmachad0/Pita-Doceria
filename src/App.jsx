@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   salvarPrecificacao, alertarMargemPerigosa,
-  registrarPedido, carregarHistorico, carregarPedidos, excluirPedido,
+  registrarPedido, carregarHistorico, carregarPedidos, excluirPedido, atualizarStatusPedido,
 } from './services/supabase-integration'
 
 // ── Brand colors ─────────────────────────────────────────────────────────────
@@ -1061,10 +1061,24 @@ export default function App() {
                       {qty}x {row['Produto']}
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: stt.bg, color: stt.color }}>
-                        {row['Status'] || 'Recebido'}
-                      </span>
+                      <select
+                        value={row['Status'] || 'Recebido'}
+                        onChange={async e => {
+                          const novoStatus = e.target.value
+                          setPedidos(prev => prev.map(p =>
+                            p['Nº Pedido'] === row['Nº Pedido'] ? { ...p, 'Status': novoStatus } : p
+                          ))
+                          await atualizarStatusPedido(row['Nº Pedido'], novoStatus)
+                        }}
+                        className="text-[11px] font-bold px-2 py-0.5 rounded-full cursor-pointer"
+                        style={{ background: stt.bg, color: stt.color, border: 'none', outline: 'none' }}
+                      >
+                        <option value="Recebido">Recebido</option>
+                        <option value="Em Preparo">Em Preparo</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Pronto">Pronto</option>
+                        <option value="Cancelado">Cancelado</option>
+                      </select>
                       <span className="text-[11px]" style={{ color: C.textMuted }}>{row['Data/Hora']}</span>
                       {row['Observações'] && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
