@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   salvarPrecificacao, alertarMargemPerigosa,
-  registrarPedido, carregarHistorico, carregarPedidos,
+  registrarPedido, carregarHistorico, carregarPedidos, excluirPedido,
 } from './services/supabase-integration'
 
 // ── Brand colors ─────────────────────────────────────────────────────────────
@@ -306,6 +306,8 @@ export default function App() {
   const [savingPed, setSavingPed]     = useState(false)
   const [pedMsg, setPedMsg]           = useState(null)
   const [printOrder, setPrintOrder]   = useState(null)
+  const [deleteOrder, setDeleteOrder] = useState(null)
+  const [deletingPed, setDeletingPed] = useState(false)
 
   // ── Cálculos ──────────────────────────────────────────────────────────────
   const totalFixed    = fixed.water + fixed.energy + fixed.rent + fixed.salary
@@ -382,6 +384,22 @@ export default function App() {
       setSaveMsg({ ok: false, text: 'Erro ao salvar. Verifique a configuração do Supabase.' })
     }
     setTimeout(() => setSaveMsg(null), 5000)
+  }
+
+  // ── Excluir pedido ────────────────────────────────────────────────────────
+  const handleExcluirPedido = async () => {
+    if (!deleteOrder) return
+    setDeletingPed(true)
+    const result = await excluirPedido(deleteOrder['Nº Pedido'])
+    setDeletingPed(false)
+    if (result) {
+      setPedidos(prev => prev.filter(p => p['Nº Pedido'] !== deleteOrder['Nº Pedido']))
+      setPedMsg({ ok: true, text: `Pedido ${deleteOrder['Nº Pedido']} excluído com sucesso.` })
+    } else {
+      setPedMsg({ ok: false, text: 'Erro ao excluir. Tente novamente.' })
+    }
+    setDeleteOrder(null)
+    setTimeout(() => setPedMsg(null), 4000)
   }
 
   // ── Registrar pedido ──────────────────────────────────────────────────────
@@ -1071,6 +1089,12 @@ export default function App() {
                       style={{ background: C.white, borderColor: C.grayMid, color: C.textMid }}>
                       <Printer size={13} /> Imprimir
                     </button>
+                    <button
+                      onClick={() => setDeleteOrder(row)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-colors hover:bg-red-50 mt-1.5"
+                      style={{ background: C.white, borderColor: '#f5b7b7', color: '#c0392b' }}>
+                      <Trash2 size={13} /> Excluir
+                    </button>
                   </div>
                 </div>
               )
@@ -1160,6 +1184,47 @@ export default function App() {
                 className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold"
                 style={{ flex: 2, background: C.feldgrau, color: C.peach }}>
                 <Printer size={15} /> Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DELETE CONFIRMATION MODAL ───────────────────────────────────────── */}
+      {deleteOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+
+            <div className="px-6 pt-6 pb-4 text-center">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: '#fdf2f2' }}>
+                <Trash2 size={22} style={{ color: '#c0392b' }} />
+              </div>
+              <p className="font-bold text-[15px] mb-1" style={{ color: C.feldgrau }}>Excluir pedido?</p>
+              <p className="text-[13px] font-semibold" style={{ color: C.textMid }}>
+                {deleteOrder['Nº Pedido']} · {deleteOrder['Cliente']}
+              </p>
+              <p className="text-[12px] mt-2" style={{ color: C.textMuted }}>
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setDeleteOrder(null)}
+                disabled={deletingPed}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border"
+                style={{ borderColor: C.grayMid, color: C.textMuted }}>
+                Cancelar
+              </button>
+              <button
+                onClick={handleExcluirPedido}
+                disabled={deletingPed}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold"
+                style={{ flex: 2, background: deletingPed ? '#e88' : '#c0392b', color: '#fff', cursor: deletingPed ? 'not-allowed' : 'pointer' }}>
+                {deletingPed
+                  ? <><Loader size={14} className="animate-spin" /> Excluindo...</>
+                  : <><Trash2 size={14} /> Excluir</>}
               </button>
             </div>
           </div>

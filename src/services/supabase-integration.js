@@ -64,6 +64,14 @@ export async function carregarHistorico() {
   }))
 }
 
+export async function excluirPedido(numeroPedido) {
+  const { error } = await supabase
+    .from('pedidos')
+    .delete()
+    .eq('numero_pedido', numeroPedido)
+  return error ? null : true
+}
+
 export async function carregarPedidos() {
   const { data, error } = await supabase
     .from('pedidos')
