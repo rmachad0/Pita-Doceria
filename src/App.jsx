@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronUp, Save, Clock, ShoppingBag,
   RefreshCw, Phone, Calendar, MessageSquare, CreditCard,
   CheckCircle, XCircle, Loader, ClipboardList,
+  Printer, X as CloseX,
 } from 'lucide-react'
 import {
   salvarPrecificacao, alertarMargemPerigosa,
@@ -212,6 +213,54 @@ const TRENDS = [
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(isNaN(v) || !isFinite(v) ? 0 : v)
 const pct = (v) => `${(isNaN(v) || !isFinite(v) ? 0 : v).toFixed(1)}%`
 
+// ── Cupom térmico 80mm ────────────────────────────────────────────────────────
+function buildReceipt(order) {
+  const total = parseFloat(order['Valor Total'] || 0)
+  const fmt = (v) => `R$ ${v.toFixed(2).replace('.', ',')}`
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+@page{size:80mm auto;margin:3mm 4mm 14mm 4mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Courier New',Courier,monospace;font-size:11px;width:72mm;color:#000}
+.c{text-align:center}.b{font-weight:bold}
+.row{display:flex;justify-content:space-between;margin:2px 0}
+.sep{border-top:1px dashed #333;margin:5px 0}
+.lbl{font-size:10px;color:#555}
+.total-row{display:flex;justify-content:space-between;font-weight:bold;font-size:13px;margin:3px 0}
+</style></head><body>
+<div class="c b" style="font-size:15px;margin-bottom:2px">PiTa Doceria</div>
+<div class="c" style="font-size:9px;margin-bottom:5px">Doceria Artesanal · Sinop, MT</div>
+<div class="sep"></div>
+<div class="row"><span class="lbl">Pedido:</span><span class="b">${order['Nº Pedido']}</span></div>
+<div class="row"><span class="lbl">Data:</span><span>${order['Data/Hora']}</span></div>
+<div class="row"><span class="lbl">Cliente:</span><span class="b">${order['Cliente']}</span></div>
+${order['Entrega'] && order['Entrega'] !== '—' ? `<div class="row"><span class="lbl">Entrega:</span><span>${order['Entrega']}</span></div>` : ''}
+<div class="sep"></div>
+<div class="row">
+  <span style="flex:1;padding-right:4px">${order['Quantidade']}x ${order['Produto']}</span>
+  <span>${fmt(total)}</span>
+</div>
+<div class="sep"></div>
+<div class="total-row"><span>TOTAL</span><span>${fmt(total)}</span></div>
+<div class="row"><span class="lbl">Pagamento:</span><span>${order['Pagamento'] || 'Pix'}</span></div>
+${order['Observações'] ? `<div class="sep"></div><div style="font-size:10px"><b>Obs:</b> ${order['Observações']}</div>` : ''}
+<div class="sep" style="margin-top:10px"></div>
+<div class="c" style="font-size:10px;line-height:1.7">
+  Muito obrigada pela preferência! 🍫<br>
+  <span style="font-size:9px">pita-doceria.vercel.app</span>
+</div>
+</body></html>`
+}
+
+function doPrint(order) {
+  const win = window.open('', '_blank', 'width=340,height=580,menubar=no,toolbar=no,location=no,status=no')
+  if (!win) return
+  win.document.write(buildReceipt(order))
+  win.document.close()
+  win.focus()
+  setTimeout(() => { win.print() }, 350)
+}
+
 let idSeq = 1000
 
 // ── PEDIDO VAZIO ──────────────────────────────────────────────────────────────
@@ -256,6 +305,7 @@ export default function App() {
   const [novoPedido, setNovoPedido]   = useState(PEDIDO_VAZIO)
   const [savingPed, setSavingPed]     = useState(false)
   const [pedMsg, setPedMsg]           = useState(null)
+  const [printOrder, setPrintOrder]   = useState(null)
 
   // ── Cálculos ──────────────────────────────────────────────────────────────
   const totalFixed    = fixed.water + fixed.energy + fixed.rent + fixed.salary
@@ -930,9 +980,16 @@ export default function App() {
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: C.feldgrau }}>
                   <ShoppingBag size={14} color={C.peach} />
                 </div>
-                <span className="font-bold text-sm font-serif" style={{ color: C.feldgrau }}>
-                  Pedidos Registrados · {pedidos.length} no total
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm font-serif" style={{ color: C.feldgrau }}>
+                    Pedidos Registrados
+                  </span>
+                  {pedidos.length > 0 && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.peachLt, color: C.feldgrauDk }}>
+                      {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
               </div>
               <button onClick={loadPedidos} disabled={loadingPed}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold border"
@@ -945,7 +1002,7 @@ export default function App() {
             {loadingPed && (
               <div className="flex items-center justify-center py-12 gap-3" style={{ color: C.textMuted }}>
                 <Loader size={20} className="animate-spin" style={{ color: C.feldgrau }} />
-                <span className="text-[13px]">Buscando pedidos no Google Sheets...</span>
+                <span className="text-[13px]">Buscando pedidos na nuvem...</span>
               </div>
             )}
 
@@ -957,39 +1014,156 @@ export default function App() {
               </div>
             )}
 
-            {!loadingPed && pedidos.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[12px] border-collapse">
-                  <thead>
-                    <tr style={{ background: C.feldgrau, color: C.peachLt }}>
-                      {['Nº Pedido', 'Data/Hora', 'Cliente', 'Produto', 'Qtd', 'Valor Total', 'Entrega', 'Status'].map(h => (
-                        <th key={h} className="px-3 py-2.5 text-left font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pedidos.map((row, i) => (
-                      <tr key={i} style={{ background: i % 2 === 0 ? C.white : C.offWhite, borderBottom: `1px solid ${C.grayLt}` }}>
-                        <td className="px-3 py-2.5 font-bold font-mono text-[11px]" style={{ color: C.feldgrau }}>{row['Nº Pedido']}</td>
-                        <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: C.textMuted }}>{row['Data/Hora']}</td>
-                        <td className="px-3 py-2.5 font-semibold" style={{ color: C.feldgrau }}>{row['Cliente']}</td>
-                        <td className="px-3 py-2.5" style={{ color: C.textMid }}>{row['Produto']}</td>
-                        <td className="px-3 py-2.5 text-center" style={{ color: C.textMid }}>{row['Quantidade']}</td>
-                        <td className="px-3 py-2.5 font-bold" style={{ color: C.feldgrau }}>R$ {parseFloat(row['Valor Total'] || 0).toFixed(2)}</td>
-                        <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: C.textMuted }}>{row['Entrega'] || '—'}</td>
-                        <td className="px-3 py-2.5">
-                          <span className="font-bold text-[10px] px-2 py-0.5 rounded-full" style={{ background: `${C.asparagus}20`, color: C.asparagus }}>
-                            {row['Status'] || 'Recebido'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {!loadingPed && pedidos.length > 0 && pedidos.map((row, i) => {
+              const STATUS_STYLE = {
+                'Pronto':     { bg: '#e8f5e9', color: '#2e7d32' },
+                'Pendente':   { bg: '#fff8e1', color: '#e65100' },
+                'Cancelado':  { bg: '#ffebee', color: '#c62828' },
+                'Recebido':   { bg: '#e8f0fe', color: '#1a73e8' },
+                'Em Preparo': { bg: '#f3e5f5', color: '#7b1fa2' },
+              }
+              const stt = STATUS_STYLE[row['Status']] || { bg: C.grayLt, color: C.textMuted }
+              const qty = row['Quantidade'] || 1
+              return (
+                <div key={i} className="flex items-start gap-3 sm:gap-4 p-4 mb-3 rounded-xl border bg-white"
+                  style={{ borderColor: C.grayLt }}>
+
+                  {/* Left circle */}
+                  <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center"
+                    style={{ background: C.peachLt, border: `2px solid ${C.peach}` }}>
+                    <ShoppingBag size={15} style={{ color: C.peachDk }} />
+                  </div>
+
+                  {/* Center */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[14px] leading-tight truncate" style={{ color: C.feldgrau }}>
+                      {row['Nº Pedido']} · {row['Cliente']}
+                    </p>
+                    <p className="text-[12px] mt-0.5 truncate" style={{ color: C.textMuted }}>
+                      {qty}x {row['Produto']}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: stt.bg, color: stt.color }}>
+                        {row['Status'] || 'Recebido'}
+                      </span>
+                      <span className="text-[11px]" style={{ color: C.textMuted }}>{row['Data/Hora']}</span>
+                      {row['Observações'] && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1"
+                          style={{ background: C.grayLt, color: C.textMuted, border: `1px solid ${C.grayMid}` }}>
+                          <MessageSquare size={9} /> Obs
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right */}
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-bold text-[15px] font-serif" style={{ color: C.feldgrau }}>
+                      {brl(parseFloat(row['Valor Total'] || 0))}
+                    </p>
+                    <p className="text-[11px] mb-2" style={{ color: C.textMuted }}>
+                      {qty} item{qty !== 1 ? 's' : ''}
+                    </p>
+                    <button
+                      onClick={() => setPrintOrder(row)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-colors hover:bg-gray-50"
+                      style={{ background: C.white, borderColor: C.grayMid, color: C.textMid }}>
+                      <Printer size={13} /> Imprimir
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </Card>
         </>
+      )}
+
+      {/* ── PRINT PREVIEW MODAL ─────────────────────────────────────────────── */}
+      {printOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: C.grayLt }}>
+              <div className="flex items-center gap-2">
+                <Printer size={16} style={{ color: C.feldgrau }} />
+                <span className="font-bold text-[14px]" style={{ color: C.feldgrau }}>Prévia do Cupom</span>
+              </div>
+              <button onClick={() => setPrintOrder(null)} className="rounded-full p-1.5 hover:bg-gray-100 transition-colors">
+                <CloseX size={16} style={{ color: C.textMuted }} />
+              </button>
+            </div>
+
+            {/* Receipt preview */}
+            <div className="p-5 flex justify-center overflow-auto" style={{ maxHeight: '65vh', background: C.grayLt }}>
+              <div style={{ width: 280, background: '#fff', fontFamily: "'Courier New', Courier, monospace", fontSize: 12, color: '#000', padding: '16px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 15, marginBottom: 2 }}>PiTa Doceria</div>
+                <div style={{ textAlign: 'center', fontSize: 9, marginBottom: 8 }}>Doceria Artesanal · Sinop, MT</div>
+                <div style={{ borderTop: '1px dashed #333', margin: '5px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                  <span style={{ fontSize: 10, color: '#555' }}>Pedido:</span>
+                  <span style={{ fontWeight: 'bold' }}>{printOrder['Nº Pedido']}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                  <span style={{ fontSize: 10, color: '#555' }}>Data:</span>
+                  <span>{printOrder['Data/Hora']}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                  <span style={{ fontSize: 10, color: '#555' }}>Cliente:</span>
+                  <span style={{ fontWeight: 'bold' }}>{printOrder['Cliente']}</span>
+                </div>
+                {printOrder['Entrega'] && printOrder['Entrega'] !== '—' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                    <span style={{ fontSize: 10, color: '#555' }}>Entrega:</span>
+                    <span>{printOrder['Entrega']}</span>
+                  </div>
+                )}
+                <div style={{ borderTop: '1px dashed #333', margin: '5px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                  <span style={{ flex: 1, paddingRight: 4 }}>{printOrder['Quantidade']}x {printOrder['Produto']}</span>
+                  <span>R$ {parseFloat(printOrder['Valor Total'] || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+                <div style={{ borderTop: '1px dashed #333', margin: '5px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 13, margin: '3px 0' }}>
+                  <span>TOTAL</span>
+                  <span>R$ {parseFloat(printOrder['Valor Total'] || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                  <span style={{ fontSize: 10, color: '#555' }}>Pagamento:</span>
+                  <span>{printOrder['Pagamento'] || 'Pix'}</span>
+                </div>
+                {printOrder['Observações'] && (
+                  <>
+                    <div style={{ borderTop: '1px dashed #333', margin: '5px 0' }} />
+                    <div style={{ fontSize: 10 }}><b>Obs:</b> {printOrder['Observações']}</div>
+                  </>
+                )}
+                <div style={{ borderTop: '1px dashed #333', margin: '10px 0 5px' }} />
+                <div style={{ textAlign: 'center', fontSize: 10, lineHeight: 1.7 }}>
+                  Muito obrigada pela preferência! 🍫<br />
+                  <span style={{ fontSize: 9 }}>pita-doceria.vercel.app</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer buttons */}
+            <div className="px-5 py-4 flex gap-3">
+              <button
+                onClick={() => setPrintOrder(null)}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border"
+                style={{ borderColor: C.grayMid, color: C.textMuted }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => { doPrint(printOrder); setPrintOrder(null) }}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold"
+                style={{ flex: 2, background: C.feldgrau, color: C.peach }}>
+                <Printer size={15} /> Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── FOOTER ─────────────────────────────────────────────────────────── */}

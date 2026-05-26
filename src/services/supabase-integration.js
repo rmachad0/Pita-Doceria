@@ -80,5 +80,7 @@ export async function carregarPedidos() {
     'Valor Total': r.valor_total,
     'Entrega':     r.data_entrega ? new Date(r.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR') : '—',
     'Status':      r.status,
+    'Pagamento':   r.forma_pagamento || 'Pix',
+    'Observações': r.observacoes || '',
   }))
 }
