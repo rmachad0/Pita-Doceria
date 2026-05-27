@@ -96,7 +96,7 @@ export default function Dashboard() {
 
   // ── Config ────────────────────────────────────────────────────────────────
   const [cfg, setCfg] = useState({
-    fixedCosts:      3500,
+    fixedCosts:      5637,  // água 200 + energia 137 + aluguel 2300 + salário 3000
     targetProfit:    2000,
     workDays:        26,
     hoursPerDay:     8,
