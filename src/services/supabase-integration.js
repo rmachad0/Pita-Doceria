@@ -31,7 +31,7 @@ export async function alertarMargemPerigosa(state) {
 
 export async function registrarPedido(pedido) {
   const numeroPedido = `PED-${Date.now()}`
-  const { error } = await supabase.from('pedidos').insert([{
+  const base = {
     numero_pedido:   numeroPedido,
     nome_cliente:    pedido.clientName,
     telefone:        pedido.phone,
@@ -43,7 +43,13 @@ export async function registrarPedido(pedido) {
     observacoes:     pedido.notes,
     status:          'Recebido',
     canal:           pedido.canal || 'direto',
-  }])
+  }
+  let { error } = await supabase.from('pedidos').insert([base])
+  // Coluna canal pode não existir ainda (migration pendente) — retenta sem ela
+  if (error && error.code === '42703') {
+    const { canal: _drop, ...semCanal } = base
+    ;({ error } = await supabase.from('pedidos').insert([semCanal]))
+  }
   return error ? null : { success: true, numeroPedido }
 }
 
