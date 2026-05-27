@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import {
   Settings, ChefHat, Package, Store, Tag,
   TrendingUp, Plus, Trash2, DollarSign, BarChart3,
@@ -11,6 +11,7 @@ import {
   salvarPrecificacao, alertarMargemPerigosa,
   registrarPedido, carregarHistorico, carregarPedidos, excluirPedido, atualizarStatusPedido,
 } from './services/supabase-integration'
+const Dashboard = lazy(() => import('./components/Dashboard'))
 
 // ── Brand colors ─────────────────────────────────────────────────────────────
 const C = {
@@ -468,9 +469,10 @@ export default function App() {
       {/* ── TABS ───────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl border" style={{ background: C.grayLt, borderColor: C.grayMid }}>
         {[
-          { k: 'pricing', l: 'Precificação',   icon: DollarSign },
-          { k: 'history', l: 'Histórico',       icon: Clock      },
-          { k: 'orders',  l: 'Pedidos',         icon: ShoppingBag },
+          { k: 'pricing',   l: 'Precificação', icon: DollarSign },
+          { k: 'history',   l: 'Histórico',    icon: Clock      },
+          { k: 'orders',    l: 'Pedidos',      icon: ShoppingBag },
+          { k: 'dashboard', l: 'Dashboard',    icon: BarChart3  },
         ].map(({ k, l, icon: Icon }) => (
           <button
             key={k}
@@ -1115,6 +1117,20 @@ export default function App() {
             })}
           </Card>
         </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: DASHBOARD
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'dashboard' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-24 gap-3" style={{ color: '#7a8a7c' }}>
+            <Loader size={22} className="animate-spin" style={{ color: '#525F54' }} />
+            <span className="text-[13px]">Carregando dashboard…</span>
+          </div>
+        }>
+          <Dashboard />
+        </Suspense>
       )}
 
       {/* ── PRINT PREVIEW MODAL ─────────────────────────────────────────────── */}
