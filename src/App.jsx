@@ -299,8 +299,15 @@ export default function App() {
   const [historico, setHistorico]         = useState([])
   const [loadingHist, setLoadingHist]     = useState(false)
   const [histLoaded, setHistLoaded]       = useState(false)
-  const [editingHist, setEditingHist]     = useState(null)   // id da linha em edição
-  const [editHistVals, setEditHistVals]   = useState({})     // valores em edição
+  // Modal de edição de precificação
+  const [editHistModal, setEditHistModal] = useState(null)   // row completo sendo editado
+  const [editHistProd, setEditHistProd]   = useState('')
+  const [editHistPreco, setEditHistPreco] = useState('')
+  const [editHistCanal, setEditHistCanal] = useState('Direta')
+  const [editHistIngs, setEditHistIngs]   = useState([])
+  const [editHistPkg, setEditHistPkg]     = useState(0)
+  const [editHistQty, setEditHistQty]     = useState(1)
+  const [editHistPT, setEditHistPT]       = useState(60)    // prepTime
   const [savingHist, setSavingHist]       = useState(false)
 
   // ── Pedidos ───────────────────────────────────────────────────────────────
@@ -359,28 +366,47 @@ export default function App() {
     setLoadingHist(false)
   }, [])
 
+  // ── Abrir / fechar modal de edição de precificação ────────────────────────
+  const openEditHist = (row) => {
+    const ings = row.ingredientes?.ings || []
+    setEditHistProd(row['Produto'])
+    setEditHistPreco(String(parseFloat(row['Preço Final (R$)'] || 0).toFixed(2)))
+    setEditHistCanal(row['Canal'] || 'Direta')
+    setEditHistIngs(ings.map((i, idx) => ({ ...i, id: i.id ?? idx + 1 })))
+    setEditHistPkg(row.ingredientes?.packaging ?? 0)
+    setEditHistQty(row.ingredientes?.recipeQty ?? 1)
+    setEditHistPT(row.ingredientes?.prepTime ?? 60)
+    setEditHistModal(row)
+  }
+
   // ── Salvar edição de precificação ─────────────────────────────────────────
   const handleSalvarEditHist = async () => {
-    if (!editingHist) return
+    if (!editHistModal) return
     setSavingHist(true)
-    const row = historico.find(r => r.id === editingHist)
-    const result = await atualizarPrecificacao(editingHist, {
-      produto:    editHistVals.produto,
-      precoFinal: parseFloat(editHistVals.precoFinal) || 0,
-      canal:      editHistVals.canal,
-      custoBase:  parseFloat(row['Custo Base (R$)']) || 0,
+    const result = await atualizarPrecificacao(editHistModal.id, {
+      produto:             editHistProd,
+      precoFinal:          parseFloat(editHistPreco) || 0,
+      canal:               editHistCanal,
+      ings:                editHistIngs,
+      packaging:           parseFloat(editHistPkg) || 0,
+      recipeQty:           parseFloat(editHistQty) || 1,
+      prepTime:            parseFloat(editHistPT) || 0,
+      cph,
+      custoBaseExistente:  parseFloat(editHistModal['Custo Base (R$)']) || 0,
     })
     setSavingHist(false)
     if (result) {
-      setHistorico(prev => prev.map(r => r.id !== editingHist ? r : {
+      setHistorico(prev => prev.map(r => r.id !== editHistModal.id ? r : {
         ...r,
-        'Produto':          editHistVals.produto,
-        'Preço Final (R$)': parseFloat(editHistVals.precoFinal) || 0,
+        'Produto':          editHistProd,
+        'Custo Base (R$)':  result.custoBase,
+        'Preço Final (R$)': parseFloat(editHistPreco) || 0,
         'Margem Líq. (%)':  result.margemLiquida,
         'Saúde':            result.saude,
-        'Canal':            editHistVals.canal,
+        'Canal':            editHistCanal,
+        ingredientes: { ings: editHistIngs, packaging: editHistPkg, recipeQty: editHistQty, prepTime: editHistPT },
       }))
-      setEditingHist(null)
+      setEditHistModal(null)
     }
   }
 
@@ -466,6 +492,20 @@ export default function App() {
   const updateIng = (id, f, v) => setIngs(p => p.map(i => i.id === id ? { ...i, [f]: (f === 'name' || f === 'unit') ? v : (parseFloat(v) || 0) } : i))
   const updFixed  = (f, v) => setFixed(p => ({ ...p, [f]: parseFloat(v) || 0 }))
   const updPedido = (f, v) => setNovoPedido(p => ({ ...p, [f]: v }))
+
+  // ── Cálculos do modal de edição ───────────────────────────────────────────
+  const mIngTotal   = editHistIngs.reduce((s, i) => s + (i.pkgWeight > 0 ? (i.pkgPrice / i.pkgWeight) * i.used : 0), 0)
+  const mStructBat  = ((parseFloat(editHistPT) || 0) / 60) * cph
+  const mQty        = parseFloat(editHistQty) || 1
+  const mIngUnit    = mIngTotal / mQty
+  const mStructUnit = mStructBat / mQty
+  const mPkgUnit    = parseFloat(editHistPkg) || 0
+  const mBase       = editHistIngs.length > 0
+    ? mIngUnit + mPkgUnit + mStructUnit
+    : parseFloat(editHistModal?.['Custo Base (R$)']) || 0
+  const mPreco      = parseFloat(editHistPreco) || 0
+  const mMargem     = mPreco > 0 && mBase >= 0 ? ((mPreco - mBase) / mPreco) * 100 : 0
+  const mSaudeColor = mMargem >= 25 ? C.asparagus : mMargem >= 11 ? '#d4a017' : '#c0392b'
 
   // ══════════════════════════════════════════════════════════════════════════
   return (
@@ -916,97 +956,8 @@ export default function App() {
                   {historico.map((row, i) => {
                     const margem     = parseFloat(row['Margem Líq. (%)'] || 0)
                     const saudeColor = margem >= 25 ? C.asparagus : margem >= 11 ? '#d4a017' : '#c0392b'
-                    const isEditing  = editingHist === row.id
-                    const rowBg      = i % 2 === 0 ? C.white : C.offWhite
-
-                    if (isEditing) {
-                      return (
-                        <tr key={row.id} style={{ background: '#fdf8f0', borderBottom: `2px solid ${C.peach}` }}>
-                          {/* Data/Hora — não editável */}
-                          <td className="px-3 py-2" style={{ color: C.textMuted, whiteSpace: 'nowrap' }}>{row['Data/Hora']}</td>
-
-                          {/* Produto */}
-                          <td className="px-2 py-1.5">
-                            <input
-                              autoFocus
-                              value={editHistVals.produto}
-                              onChange={e => setEditHistVals(v => ({ ...v, produto: e.target.value }))}
-                              className="w-full px-2 py-1 rounded border text-[12px]"
-                              style={{ borderColor: C.peach, color: C.feldgrau, minWidth: 120 }}
-                            />
-                          </td>
-
-                          {/* Custo Base — somente leitura */}
-                          <td className="px-3 py-2" style={{ color: C.textMuted }}>
-                            R$ {parseFloat(row['Custo Base (R$)'] || 0).toFixed(2)}
-                          </td>
-
-                          {/* Preço Final */}
-                          <td className="px-2 py-1.5">
-                            <input
-                              type="number" step="0.01"
-                              value={editHistVals.precoFinal}
-                              onChange={e => setEditHistVals(v => ({ ...v, precoFinal: e.target.value }))}
-                              className="w-full px-2 py-1 rounded border text-[12px] font-bold"
-                              style={{ borderColor: C.peach, color: C.feldgrau, width: 88 }}
-                            />
-                          </td>
-
-                          {/* Margem — recalculada automaticamente */}
-                          <td className="px-3 py-2 text-[11px]" style={{ color: C.textMuted }}>
-                            {(() => {
-                              const pf = parseFloat(editHistVals.precoFinal) || 0
-                              const cb = parseFloat(row['Custo Base (R$)']) || 0
-                              const m  = pf > 0 ? ((pf - cb) / pf) * 100 : 0
-                              return <span style={{ color: m >= 25 ? C.asparagus : m >= 11 ? '#d4a017' : '#c0392b' }}>{m.toFixed(1)}%</span>
-                            })()}
-                          </td>
-
-                          {/* Saúde — recalculada */}
-                          <td className="px-3 py-2 text-[11px]" style={{ color: C.textMuted }}>auto</td>
-
-                          {/* Canal */}
-                          <td className="px-2 py-1.5">
-                            <select
-                              value={editHistVals.canal}
-                              onChange={e => setEditHistVals(v => ({ ...v, canal: e.target.value }))}
-                              className="px-2 py-1 rounded border text-[12px] cursor-pointer"
-                              style={{ borderColor: C.peach, color: C.feldgrau }}
-                            >
-                              <option value="Direta">Direta</option>
-                              <option value="iFood">iFood</option>
-                            </select>
-                          </td>
-
-                          {/* Ações */}
-                          <td className="px-2 py-1.5 whitespace-nowrap">
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={handleSalvarEditHist}
-                                disabled={savingHist}
-                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold"
-                                style={{ background: C.asparagus, color: '#fff' }}
-                              >
-                                {savingHist
-                                  ? <Loader size={11} className="animate-spin" />
-                                  : <CheckCircle size={11} />}
-                                Salvar
-                              </button>
-                              <button
-                                onClick={() => setEditingHist(null)}
-                                disabled={savingHist}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold border"
-                                style={{ borderColor: C.grayMid, color: C.textMuted }}>
-                                <XCircle size={11} /> Cancelar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    }
-
                     return (
-                      <tr key={row.id ?? i} style={{ background: rowBg, borderBottom: `1px solid ${C.grayLt}` }}>
+                      <tr key={row.id ?? i} style={{ background: i % 2 === 0 ? C.white : C.offWhite, borderBottom: `1px solid ${C.grayLt}` }}>
                         <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: C.textMuted }}>{row['Data/Hora']}</td>
                         <td className="px-3 py-2.5 font-semibold" style={{ color: C.feldgrau }}>{row['Produto']}</td>
                         <td className="px-3 py-2.5" style={{ color: C.textMid }}>R$ {parseFloat(row['Custo Base (R$)'] || 0).toFixed(2)}</td>
@@ -1020,17 +971,9 @@ export default function App() {
                         <td className="px-3 py-2.5" style={{ color: C.textMuted }}>{row['Canal'] || '—'}</td>
                         <td className="px-3 py-2.5">
                           <button
-                            onClick={() => {
-                              setEditingHist(row.id)
-                              setEditHistVals({
-                                produto:    row['Produto'],
-                                precoFinal: row['Preço Final (R$)'],
-                                canal:      row['Canal'] || 'Direta',
-                              })
-                            }}
+                            onClick={() => openEditHist(row)}
                             className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors hover:bg-gray-50"
-                            style={{ borderColor: C.grayMid, color: C.feldgrauLt }}
-                          >
+                            style={{ borderColor: C.grayMid, color: C.feldgrauLt }}>
                             <Pencil size={11} /> Editar
                           </button>
                         </td>
@@ -1396,6 +1339,232 @@ export default function App() {
                 {deletingPed
                   ? <><Loader size={14} className="animate-spin" /> Excluindo...</>
                   : <><Trash2 size={14} /> Excluir</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT PRECIFICAÇÃO MODAL ────────────────────────────────────────── */}
+      {editHistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5"
+          style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="bg-white rounded-2xl w-full flex flex-col shadow-2xl overflow-hidden"
+            style={{ maxWidth: 860, maxHeight: '94vh' }}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+              style={{ borderColor: C.grayLt }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: C.feldgrau }}>
+                  <Pencil size={14} color={C.peach} />
+                </div>
+                <div>
+                  <p className="font-bold text-[14px] font-serif" style={{ color: C.feldgrau }}>
+                    Editar Precificação
+                  </p>
+                  <p className="text-[10px]" style={{ color: C.textMuted }}>{editHistModal['Data/Hora']}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditHistModal(null)}
+                className="rounded-full p-1.5 hover:bg-gray-100 transition-colors">
+                <CloseX size={16} style={{ color: C.textMuted }} />
+              </button>
+            </div>
+
+            {/* Body — scrollável */}
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+
+              {/* Produto + Canal */}
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                <div>
+                  <Label>Nome do Produto</Label>
+                  <Input value={editHistProd} onChange={e => setEditHistProd(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Canal de Venda</Label>
+                  <div className="flex gap-2">
+                    {[{v:'Direta',l:'Venda Direta'},{v:'iFood',l:'iFood'}].map(({v,l}) => (
+                      <button key={v} onClick={() => setEditHistCanal(v)}
+                        className="flex-1 px-3 py-2.5 rounded-lg text-[12px] font-bold border-2 transition-colors"
+                        style={{ borderColor: editHistCanal===v ? C.feldgrau : C.grayMid, background: editHistCanal===v ? C.feldgrau : C.white, color: editHistCanal===v ? C.peach : C.textMuted }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Rendimento / Embalagem / Preparo */}
+              <div className="grid gap-3 grid-cols-3">
+                <div>
+                  <Label>Rendimento (un)</Label>
+                  <Input type="number" value={editHistQty} onChange={e => setEditHistQty(parseFloat(e.target.value)||1)} />
+                </div>
+                <div>
+                  <Label>Embalagem (R$)</Label>
+                  <Input type="number" step="0.01" value={editHistPkg} onChange={e => setEditHistPkg(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Preparo (min)</Label>
+                  <Input type="number" value={editHistPT} onChange={e => setEditHistPT(parseFloat(e.target.value)||0)} />
+                </div>
+              </div>
+
+              {/* Ingredientes */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Package size={13} color={C.feldgrau} />
+                    <span className="font-bold text-[13px] font-serif" style={{ color: C.feldgrau }}>Ingredientes</span>
+                    {editHistIngs.length > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: C.peachLt, color: C.feldgrauDk }}>
+                        {editHistIngs.length} item{editHistIngs.length!==1?'s':''}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { idSeq++; setEditHistIngs(p=>[...p,{id:idSeq,name:'Novo Ingrediente',pkgPrice:0,pkgWeight:500,used:0,unit:'g'}]) }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold"
+                    style={{ background: C.feldgrau, color: C.peach }}>
+                    <Plus size={11} /> Adicionar
+                  </button>
+                </div>
+
+                {editHistIngs.length === 0 && (
+                  <div className="text-center py-6 rounded-xl border-2 border-dashed"
+                    style={{ borderColor: C.grayMid, color: C.textMuted }}>
+                    <Package size={28} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-[12px] font-semibold">Nenhum ingrediente neste registro.</p>
+                    <p className="text-[11px] mt-0.5">
+                      {editHistModal.ingredientes
+                        ? 'Adicione ingredientes para recalcular o Custo Base.'
+                        : 'Registro salvo antes desta funcionalidade. Adicione ingredientes para habilitar o recálculo.'}
+                    </p>
+                  </div>
+                )}
+
+                {editHistIngs.length > 0 && (
+                  <div className="overflow-x-auto -mx-1 px-1">
+                    <div className="min-w-[600px]">
+                      {/* Cabeçalho */}
+                      <div className="grid gap-1.5 mb-1.5 px-2.5 py-1.5 rounded text-[9px] font-bold uppercase tracking-widest"
+                        style={{ gridTemplateColumns:'2fr 1fr 1fr 1fr 58px 88px 34px', background:C.grayLt, color:C.feldgrau }}>
+                        {['Ingrediente','Preço Pacote','Peso/Vol.','Qtd Usada','Unid.','Custo Real',''].map((h,i)=><span key={i}>{h}</span>)}
+                      </div>
+                      {/* Linhas */}
+                      {editHistIngs.map((ing, idx) => {
+                        const uc = ing.pkgWeight > 0 ? (ing.pkgPrice / ing.pkgWeight) * ing.used : 0
+                        return (
+                          <div key={ing.id} className="grid gap-1.5 mb-1.5 px-2 py-1.5 rounded border items-center"
+                            style={{ gridTemplateColumns:'2fr 1fr 1fr 1fr 58px 88px 34px', background: idx%2===0?C.white:C.offWhite, borderColor:C.grayLt }}>
+                            <Input value={ing.name}
+                              onChange={e=>setEditHistIngs(p=>p.map(i=>i.id===ing.id?{...i,name:e.target.value}:i))}
+                              style={{ fontSize:12, padding:'5px 8px' }} />
+                            <Input type="number" step="0.01" value={ing.pkgPrice}
+                              onChange={e=>setEditHistIngs(p=>p.map(i=>i.id===ing.id?{...i,pkgPrice:parseFloat(e.target.value)||0}:i))}
+                              style={{ fontSize:12, padding:'5px 8px' }} />
+                            <Input type="number" value={ing.pkgWeight}
+                              onChange={e=>setEditHistIngs(p=>p.map(i=>i.id===ing.id?{...i,pkgWeight:parseFloat(e.target.value)||0}:i))}
+                              style={{ fontSize:12, padding:'5px 8px' }} />
+                            <Input type="number" value={ing.used}
+                              onChange={e=>setEditHistIngs(p=>p.map(i=>i.id===ing.id?{...i,used:parseFloat(e.target.value)||0}:i))}
+                              style={{ fontSize:12, padding:'5px 8px' }} />
+                            <select value={ing.unit||'g'}
+                              onChange={e=>setEditHistIngs(p=>p.map(i=>i.id===ing.id?{...i,unit:e.target.value}:i))}
+                              className="w-full rounded-md border text-center cursor-pointer"
+                              style={{ fontSize:12, padding:'5px 2px', borderColor:C.grayMid, color:C.textDark, background:C.white }}>
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                              <option value="ml">ml</option>
+                            </select>
+                            <span className="font-bold text-[13px]" style={{ color:C.feldgrau }}>{brl(uc)}</span>
+                            <button onClick={()=>setEditHistIngs(p=>p.filter(i=>i.id!==ing.id))}
+                              className="w-[30px] h-[30px] rounded flex items-center justify-center border"
+                              style={{ background:C.grayLt, borderColor:C.grayMid, color:C.textMuted }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                      {/* Total lote */}
+                      <div className="flex justify-end mt-2 px-3 py-2 rounded-lg" style={{ background: C.feldgrau }}>
+                        <span className="text-[11px] font-semibold" style={{ color: C.peachLt }}>
+                          Total ingredientes (lote):{' '}
+                          <strong className="text-[15px] font-serif" style={{ color: C.peach }}>{brl(mIngTotal)}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Resultado */}
+              <div className="rounded-xl p-4 relative overflow-hidden" style={{ background: C.feldgrau }}>
+                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-10" style={{ background: C.peach }} />
+
+                {/* Decomposição */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 relative">
+                  {[
+                    { l:'Ingredientes/un',  v: mIngUnit,    show: editHistIngs.length > 0 },
+                    { l:'Embalagem/un',     v: mPkgUnit,    show: editHistIngs.length > 0 },
+                    { l:'Estrutura/un',     v: mStructUnit, show: editHistIngs.length > 0 },
+                    { l:'Custo Base/un',    v: mBase,       show: true, bold: true },
+                  ].map(({l,v,show,bold}) => (
+                    <div key={l} className="rounded-lg p-2.5 text-center" style={{ background:'rgba(250,189,151,0.09)' }}>
+                      <p className="text-[9px] font-bold uppercase tracking-wide mb-1"
+                        style={{ color:'rgba(250,189,151,0.55)' }}>{l}</p>
+                      <p className={`font-serif leading-none ${bold?'font-bold':'font-semibold'}`}
+                        style={{ color: show ? C.peach : 'rgba(250,189,151,0.3)', fontSize: bold ? 17 : 13 }}>
+                        {show ? brl(v) : '—'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Preço + Margem */}
+                <div className="flex flex-wrap items-center gap-3 relative">
+                  <div className="flex-1 min-w-[160px]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5"
+                      style={{ color:'rgba(250,189,151,0.55)' }}>Preço Final Praticado (R$)</p>
+                    <input type="number" step="0.01" value={editHistPreco}
+                      onChange={e => setEditHistPreco(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg font-bold font-serif"
+                      style={{ fontSize:22, color:C.peach, background:'rgba(250,189,151,0.1)', border:`1px solid rgba(250,189,151,0.3)` }} />
+                  </div>
+                  <div className="text-center px-3">
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color:'rgba(250,189,151,0.55)' }}>
+                      Margem Líquida
+                    </p>
+                    <p className="font-bold font-serif" style={{ fontSize:30, color: mMargem>=25?C.asparagusLt:mMargem>=11?'#f0c96a':'#f87171' }}>
+                      {(isNaN(mMargem)||!isFinite(mMargem)?0:mMargem).toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1.5" style={{ color:'rgba(250,189,151,0.55)' }}>Saúde</p>
+                    <span className="font-bold text-[11px] px-3 py-1 rounded-full"
+                      style={{ background:`${mSaudeColor}30`, color:mSaudeColor }}>
+                      {mMargem>=25?'Saudável':mMargem>=11?'Alerta':'Perigosa'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t flex gap-3 flex-shrink-0" style={{ borderColor: C.grayLt }}>
+              <button onClick={() => setEditHistModal(null)} disabled={savingHist}
+                className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border"
+                style={{ borderColor: C.grayMid, color: C.textMuted }}>
+                Cancelar
+              </button>
+              <button onClick={handleSalvarEditHist} disabled={savingHist}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold"
+                style={{ flex:2, background: savingHist ? C.grayMid : C.feldgrau, color: C.peach, cursor: savingHist ? 'not-allowed' : 'pointer' }}>
+                {savingHist
+                  ? <><Loader size={14} className="animate-spin" /> Salvando...</>
+                  : <><Save size={14} /> Salvar Alterações</>}
               </button>
             </div>
           </div>

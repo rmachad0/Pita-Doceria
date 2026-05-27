@@ -15,6 +15,12 @@ export async function salvarPrecificacao(state) {
     canal:           state.channel,
     margem_desejada: state.margin,
     imposto_nf:      state.tax,
+    ingredientes: {
+      ings:       state.ings,
+      packaging:  state.packaging,
+      recipeQty:  state.recipeQty,
+      prepTime:   state.prepTime,
+    },
   }])
   return error ? null : true
 }
@@ -69,20 +75,53 @@ export async function carregarHistorico() {
     'Margem Líq. (%)': r.margem_liquida,
     'Saúde':           r.saude,
     'Canal':           r.canal === 'ifood' ? 'iFood' : 'Direta',
+    ingredientes:      r.ingredientes || null,
   }))
 }
 
-export async function atualizarPrecificacao(id, { produto, precoFinal, canal, custoBase }) {
+export async function atualizarPrecificacao(id, {
+  produto, precoFinal, canal,
+  ings, packaging, recipeQty, prepTime, cph,
+  custoBaseExistente,
+}) {
+  let custoBase
+  if (ings && ings.length > 0) {
+    const totalIngBatch = ings.reduce(
+      (s, i) => s + (i.pkgWeight > 0 ? (i.pkgPrice / i.pkgWeight) * i.used : 0), 0
+    )
+    const structBatch = ((parseFloat(prepTime) || 0) / 60) * (parseFloat(cph) || 0)
+    const qty = parseFloat(recipeQty) || 1
+    const ingUnit    = totalIngBatch / qty
+    const pkgUnit    = parseFloat(packaging) || 0
+    const structUnit = structBatch / qty
+    custoBase = ingUnit + pkgUnit + structUnit
+  } else {
+    custoBase = parseFloat(custoBaseExistente) || 0
+  }
+
   const margemLiquida = precoFinal > 0
     ? ((precoFinal - custoBase) / precoFinal) * 100
     : 0
-  const saude = margemLiquida >= 25 ? 'Saudável' : margemLiquida >= 11 ? 'Alerta' : 'Perigosa'
+  const saude   = margemLiquida >= 25 ? 'Saudável' : margemLiquida >= 11 ? 'Alerta' : 'Perigosa'
   const canalDb = canal === 'iFood' ? 'ifood' : 'direto'
+
+  const payload = {
+    produto,
+    custo_base:     custoBase,
+    preco_final:    precoFinal,
+    margem_liquida: margemLiquida,
+    saude,
+    canal:          canalDb,
+  }
+  if (ings !== undefined) {
+    payload.ingredientes = { ings, packaging: parseFloat(packaging) || 0, recipeQty, prepTime }
+  }
+
   const { error } = await supabase
     .from('precificacoes')
-    .update({ produto, preco_final: precoFinal, margem_liquida: margemLiquida, saude, canal: canalDb })
+    .update(payload)
     .eq('id', id)
-  return error ? null : { margemLiquida, saude }
+  return error ? null : { custoBase, margemLiquida, saude }
 }
 
 export async function atualizarStatusPedido(numeroPedido, novoStatus) {
