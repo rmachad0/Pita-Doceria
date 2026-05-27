@@ -5,11 +5,12 @@ import {
   ChevronDown, ChevronUp, Save, Clock, ShoppingBag,
   RefreshCw, Phone, Calendar, MessageSquare, CreditCard,
   CheckCircle, XCircle, Loader, ClipboardList,
-  Printer, X as CloseX,
+  Printer, X as CloseX, Pencil,
 } from 'lucide-react'
 import {
   salvarPrecificacao, alertarMargemPerigosa,
-  registrarPedido, carregarHistorico, carregarPedidos, excluirPedido, atualizarStatusPedido,
+  registrarPedido, carregarHistorico, carregarPedidos,
+  excluirPedido, atualizarStatusPedido, atualizarPrecificacao,
 } from './services/supabase-integration'
 const Dashboard = lazy(() => import('./components/Dashboard'))
 
@@ -298,6 +299,9 @@ export default function App() {
   const [historico, setHistorico]         = useState([])
   const [loadingHist, setLoadingHist]     = useState(false)
   const [histLoaded, setHistLoaded]       = useState(false)
+  const [editingHist, setEditingHist]     = useState(null)   // id da linha em edição
+  const [editHistVals, setEditHistVals]   = useState({})     // valores em edição
+  const [savingHist, setSavingHist]       = useState(false)
 
   // ── Pedidos ───────────────────────────────────────────────────────────────
   const [pedidos, setPedidos]         = useState([])
@@ -354,6 +358,31 @@ export default function App() {
     setHistLoaded(true)
     setLoadingHist(false)
   }, [])
+
+  // ── Salvar edição de precificação ─────────────────────────────────────────
+  const handleSalvarEditHist = async () => {
+    if (!editingHist) return
+    setSavingHist(true)
+    const row = historico.find(r => r.id === editingHist)
+    const result = await atualizarPrecificacao(editingHist, {
+      produto:    editHistVals.produto,
+      precoFinal: parseFloat(editHistVals.precoFinal) || 0,
+      canal:      editHistVals.canal,
+      custoBase:  parseFloat(row['Custo Base (R$)']) || 0,
+    })
+    setSavingHist(false)
+    if (result) {
+      setHistorico(prev => prev.map(r => r.id !== editingHist ? r : {
+        ...r,
+        'Produto':          editHistVals.produto,
+        'Preço Final (R$)': parseFloat(editHistVals.precoFinal) || 0,
+        'Margem Líq. (%)':  result.margemLiquida,
+        'Saúde':            result.saude,
+        'Canal':            editHistVals.canal,
+      }))
+      setEditingHist(null)
+    }
+  }
 
   // ── Carregar pedidos ──────────────────────────────────────────────────────
   const loadPedidos = useCallback(async () => {
@@ -878,17 +907,106 @@ export default function App() {
               <table className="w-full text-[12px] border-collapse">
                 <thead>
                   <tr style={{ background: C.feldgrau, color: C.peachLt }}>
-                    {['Data/Hora', 'Produto', 'Custo Base', 'Preço Final', 'Margem Líq.', 'Saúde', 'Canal'].map(h => (
+                    {['Data/Hora', 'Produto', 'Custo Base', 'Preço Final', 'Margem Líq.', 'Saúde', 'Canal', ''].map(h => (
                       <th key={h} className="px-3 py-2.5 text-left font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {historico.map((row, i) => {
-                    const margem = parseFloat(row['Margem Líq. (%)'] || 0)
+                    const margem     = parseFloat(row['Margem Líq. (%)'] || 0)
                     const saudeColor = margem >= 25 ? C.asparagus : margem >= 11 ? '#d4a017' : '#c0392b'
+                    const isEditing  = editingHist === row.id
+                    const rowBg      = i % 2 === 0 ? C.white : C.offWhite
+
+                    if (isEditing) {
+                      return (
+                        <tr key={row.id} style={{ background: '#fdf8f0', borderBottom: `2px solid ${C.peach}` }}>
+                          {/* Data/Hora — não editável */}
+                          <td className="px-3 py-2" style={{ color: C.textMuted, whiteSpace: 'nowrap' }}>{row['Data/Hora']}</td>
+
+                          {/* Produto */}
+                          <td className="px-2 py-1.5">
+                            <input
+                              autoFocus
+                              value={editHistVals.produto}
+                              onChange={e => setEditHistVals(v => ({ ...v, produto: e.target.value }))}
+                              className="w-full px-2 py-1 rounded border text-[12px]"
+                              style={{ borderColor: C.peach, color: C.feldgrau, minWidth: 120 }}
+                            />
+                          </td>
+
+                          {/* Custo Base — somente leitura */}
+                          <td className="px-3 py-2" style={{ color: C.textMuted }}>
+                            R$ {parseFloat(row['Custo Base (R$)'] || 0).toFixed(2)}
+                          </td>
+
+                          {/* Preço Final */}
+                          <td className="px-2 py-1.5">
+                            <input
+                              type="number" step="0.01"
+                              value={editHistVals.precoFinal}
+                              onChange={e => setEditHistVals(v => ({ ...v, precoFinal: e.target.value }))}
+                              className="w-full px-2 py-1 rounded border text-[12px] font-bold"
+                              style={{ borderColor: C.peach, color: C.feldgrau, width: 88 }}
+                            />
+                          </td>
+
+                          {/* Margem — recalculada automaticamente */}
+                          <td className="px-3 py-2 text-[11px]" style={{ color: C.textMuted }}>
+                            {(() => {
+                              const pf = parseFloat(editHistVals.precoFinal) || 0
+                              const cb = parseFloat(row['Custo Base (R$)']) || 0
+                              const m  = pf > 0 ? ((pf - cb) / pf) * 100 : 0
+                              return <span style={{ color: m >= 25 ? C.asparagus : m >= 11 ? '#d4a017' : '#c0392b' }}>{m.toFixed(1)}%</span>
+                            })()}
+                          </td>
+
+                          {/* Saúde — recalculada */}
+                          <td className="px-3 py-2 text-[11px]" style={{ color: C.textMuted }}>auto</td>
+
+                          {/* Canal */}
+                          <td className="px-2 py-1.5">
+                            <select
+                              value={editHistVals.canal}
+                              onChange={e => setEditHistVals(v => ({ ...v, canal: e.target.value }))}
+                              className="px-2 py-1 rounded border text-[12px] cursor-pointer"
+                              style={{ borderColor: C.peach, color: C.feldgrau }}
+                            >
+                              <option value="Direta">Direta</option>
+                              <option value="iFood">iFood</option>
+                            </select>
+                          </td>
+
+                          {/* Ações */}
+                          <td className="px-2 py-1.5 whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={handleSalvarEditHist}
+                                disabled={savingHist}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                                style={{ background: C.asparagus, color: '#fff' }}
+                              >
+                                {savingHist
+                                  ? <Loader size={11} className="animate-spin" />
+                                  : <CheckCircle size={11} />}
+                                Salvar
+                              </button>
+                              <button
+                                onClick={() => setEditingHist(null)}
+                                disabled={savingHist}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold border"
+                                style={{ borderColor: C.grayMid, color: C.textMuted }}>
+                                <XCircle size={11} /> Cancelar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    }
+
                     return (
-                      <tr key={i} style={{ background: i % 2 === 0 ? C.white : C.offWhite, borderBottom: `1px solid ${C.grayLt}` }}>
+                      <tr key={row.id ?? i} style={{ background: rowBg, borderBottom: `1px solid ${C.grayLt}` }}>
                         <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: C.textMuted }}>{row['Data/Hora']}</td>
                         <td className="px-3 py-2.5 font-semibold" style={{ color: C.feldgrau }}>{row['Produto']}</td>
                         <td className="px-3 py-2.5" style={{ color: C.textMid }}>R$ {parseFloat(row['Custo Base (R$)'] || 0).toFixed(2)}</td>
@@ -900,6 +1018,22 @@ export default function App() {
                           </span>
                         </td>
                         <td className="px-3 py-2.5" style={{ color: C.textMuted }}>{row['Canal'] || '—'}</td>
+                        <td className="px-3 py-2.5">
+                          <button
+                            onClick={() => {
+                              setEditingHist(row.id)
+                              setEditHistVals({
+                                produto:    row['Produto'],
+                                precoFinal: row['Preço Final (R$)'],
+                                canal:      row['Canal'] || 'Direta',
+                              })
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors hover:bg-gray-50"
+                            style={{ borderColor: C.grayMid, color: C.feldgrauLt }}
+                          >
+                            <Pencil size={11} /> Editar
+                          </button>
+                        </td>
                       </tr>
                     )
                   })}

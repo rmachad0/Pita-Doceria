@@ -61,6 +61,7 @@ export async function carregarHistorico() {
     .limit(100)
   if (error) return []
   return data.map(r => ({
+    id:                r.id,
     'Data/Hora':       new Date(r.created_at).toLocaleString('pt-BR'),
     'Produto':         r.produto,
     'Custo Base (R$)': r.custo_base,
@@ -69,6 +70,19 @@ export async function carregarHistorico() {
     'Saúde':           r.saude,
     'Canal':           r.canal === 'ifood' ? 'iFood' : 'Direta',
   }))
+}
+
+export async function atualizarPrecificacao(id, { produto, precoFinal, canal, custoBase }) {
+  const margemLiquida = precoFinal > 0
+    ? ((precoFinal - custoBase) / precoFinal) * 100
+    : 0
+  const saude = margemLiquida >= 25 ? 'Saudável' : margemLiquida >= 11 ? 'Alerta' : 'Perigosa'
+  const canalDb = canal === 'iFood' ? 'ifood' : 'direto'
+  const { error } = await supabase
+    .from('precificacoes')
+    .update({ produto, preco_final: precoFinal, margem_liquida: margemLiquida, saude, canal: canalDb })
+    .eq('id', id)
+  return error ? null : { margemLiquida, saude }
 }
 
 export async function atualizarStatusPedido(numeroPedido, novoStatus) {
