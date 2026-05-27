@@ -472,7 +472,7 @@ export default function App() {
           { k: 'pricing',   l: 'Precificação', icon: DollarSign },
           { k: 'history',   l: 'Histórico',    icon: Clock      },
           { k: 'orders',    l: 'Pedidos',      icon: ShoppingBag },
-          { k: 'dashboard', l: 'Dashboard',    icon: BarChart3  },
+          { k: 'dashboard', l: 'Painel Financeiro', icon: BarChart3  },
         ].map(({ k, l, icon: Icon }) => (
           <button
             key={k}
