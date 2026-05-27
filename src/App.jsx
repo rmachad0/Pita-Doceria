@@ -309,6 +309,7 @@ export default function App() {
   const [editHistQty, setEditHistQty]     = useState(1)
   const [editHistPT, setEditHistPT]       = useState(60)    // prepTime
   const [savingHist, setSavingHist]       = useState(false)
+  const [editHistFallback, setEditHistFallback] = useState(false) // true se dados pré-carregados da aba
 
   // ── Pedidos ───────────────────────────────────────────────────────────────
   const [pedidos, setPedidos]         = useState([])
@@ -368,14 +369,22 @@ export default function App() {
 
   // ── Abrir / fechar modal de edição de precificação ────────────────────────
   const openEditHist = (row) => {
-    const ings = row.ingredientes?.ings || []
+    const hasSavedIngs = row.ingredientes?.ings?.length > 0
+    // Se o registro não tem ingredientes salvos, usa a receita atualmente
+    // carregada na aba Precificação como ponto de partida
+    const srcIngs  = hasSavedIngs ? row.ingredientes.ings  : ings
+    const srcPkg   = hasSavedIngs ? row.ingredientes.packaging  : packaging
+    const srcQty   = hasSavedIngs ? row.ingredientes.recipeQty  : recipeQty
+    const srcPT    = hasSavedIngs ? row.ingredientes.prepTime   : prepTime
+
     setEditHistProd(row['Produto'])
     setEditHistPreco(String(parseFloat(row['Preço Final (R$)'] || 0).toFixed(2)))
     setEditHistCanal(row['Canal'] || 'Direta')
-    setEditHistIngs(ings.map((i, idx) => ({ ...i, id: i.id ?? idx + 1 })))
-    setEditHistPkg(row.ingredientes?.packaging ?? 0)
-    setEditHistQty(row.ingredientes?.recipeQty ?? 1)
-    setEditHistPT(row.ingredientes?.prepTime ?? 60)
+    setEditHistIngs(srcIngs.map((i, idx) => ({ ...i, id: i.id ?? idx + 1 })))
+    setEditHistPkg(srcPkg ?? 0)
+    setEditHistQty(srcQty ?? 1)
+    setEditHistPT(srcPT ?? 60)
+    setEditHistFallback(!hasSavedIngs)
     setEditHistModal(row)
   }
 
@@ -1432,15 +1441,23 @@ export default function App() {
                   </button>
                 </div>
 
+                {editHistFallback && editHistIngs.length > 0 && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg mb-2 border"
+                    style={{ background: '#fdf8ed', borderColor: '#f0c96a' }}>
+                    <span style={{ color: '#d4a017', fontSize: 14, lineHeight: 1 }}>⚠</span>
+                    <p className="text-[11px] leading-snug" style={{ color: '#6b4c10' }}>
+                      <strong>Dados pré-carregados da receita atual</strong> — ingredientes salvos na aba Precificação foram usados como base. Verifique e corrija o que estava diferente neste registro antes de salvar.
+                    </p>
+                  </div>
+                )}
+
                 {editHistIngs.length === 0 && (
                   <div className="text-center py-6 rounded-xl border-2 border-dashed"
                     style={{ borderColor: C.grayMid, color: C.textMuted }}>
                     <Package size={28} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-[12px] font-semibold">Nenhum ingrediente neste registro.</p>
+                    <p className="text-[12px] font-semibold">Nenhum ingrediente disponível.</p>
                     <p className="text-[11px] mt-0.5">
-                      {editHistModal.ingredientes
-                        ? 'Adicione ingredientes para recalcular o Custo Base.'
-                        : 'Registro salvo antes desta funcionalidade. Adicione ingredientes para habilitar o recálculo.'}
+                      Carregue a receita correspondente na aba Precificação e abra este editor novamente.
                     </p>
                   </div>
                 )}
