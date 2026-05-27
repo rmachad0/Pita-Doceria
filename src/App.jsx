@@ -265,7 +265,7 @@ function doPrint(order) {
 let idSeq = 1000
 
 // ── PEDIDO VAZIO ──────────────────────────────────────────────────────────────
-const PEDIDO_VAZIO = { clientName: '', phone: '', product: '', qty: 1, unitPrice: '', deliveryDate: '', notes: '', payment: 'Pix' }
+const PEDIDO_VAZIO = { clientName: '', phone: '', product: '', qty: 1, unitPrice: '', deliveryDate: '', notes: '', payment: 'Pix', canal: 'direto' }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
@@ -953,6 +953,13 @@ export default function App() {
                   <option>Cartão de Crédito</option>
                   <option>Cartão de Débito</option>
                   <option>Transferência</option>
+                </Select>
+              </div>
+              <div>
+                <Label><span className="flex items-center gap-1"><Store size={10} /> Canal de Venda</span></Label>
+                <Select value={novoPedido.canal} onChange={e => updPedido('canal', e.target.value)}>
+                  <option value="direto">Venda Direta</option>
+                  <option value="ifood">iFood</option>
                 </Select>
               </div>
               <div>

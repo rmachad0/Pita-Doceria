@@ -42,6 +42,7 @@ export async function registrarPedido(pedido) {
     forma_pagamento: pedido.payment,
     observacoes:     pedido.notes,
     status:          'Recebido',
+    canal:           pedido.canal || 'direto',
   }])
   return error ? null : { success: true, numeroPedido }
 }
@@ -98,5 +99,6 @@ export async function carregarPedidos() {
     'Status':      r.status,
     'Pagamento':   r.forma_pagamento || 'Pix',
     'Observações': r.observacoes || '',
+    'Canal':       r.canal || 'direto',
   }))
 }

@@ -3,7 +3,7 @@ import {
   Target, TrendingUp, DollarSign, ShoppingBag, Clock,
   CheckCircle, AlertTriangle, Settings2, ChevronDown, ChevronUp,
   BarChart3, Zap, Award, RefreshCw, Loader, Package, XCircle,
-  Minus,
+  Minus, Store, Bike,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar,
@@ -128,7 +128,7 @@ export default function Dashboard() {
   const dayOfMonth = now.getDate()
 
   // ── Derived data ──────────────────────────────────────────────────────────
-  const { active, monthly, today, statusSummary, chartData } = useMemo(() => {
+  const { active, monthly, today, statusSummary, chartData, canalSplit } = useMemo(() => {
     // active: não cancelados → usado no painel operacional
     const active = pedidos.filter(p => p['Status'] !== 'Cancelado')
 
@@ -168,7 +168,21 @@ export default function Dashboard() {
       }
     })
 
-    return { active, monthly, today, statusSummary, chartData }
+    // Canal split (mês atual, apenas Recebido)
+    const monthlyDireto = monthly.filter(p => (p['Canal'] || 'direto') === 'direto')
+    const monthlyIfood  = monthly.filter(p => p['Canal'] === 'ifood')
+    const canalSplit = {
+      direto: {
+        count: monthlyDireto.length,
+        value: monthlyDireto.reduce((s, p) => s + (parseFloat(p['Valor Total']) || 0), 0),
+      },
+      ifood: {
+        count: monthlyIfood.length,
+        value: monthlyIfood.reduce((s, p) => s + (parseFloat(p['Valor Total']) || 0), 0),
+      },
+    }
+
+    return { active, monthly, today, statusSummary, chartData, canalSplit }
   }, [pedidos, curMonth, curYear, todayStr])
 
   // ── Goals ─────────────────────────────────────────────────────────────────
@@ -479,6 +493,94 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* ── CANAL SPLIT ────────────────────────────────────────────────────── */}
+      {(() => {
+        const total = canalSplit.direto.value + canalSplit.ifood.value
+        const diretoPct = total > 0 ? (canalSplit.direto.value / total) * 100 : 0
+        const ifoodPct  = total > 0 ? (canalSplit.ifood.value  / total) * 100 : 0
+        return (
+          <div className="rounded-xl border p-5" style={{ background: C.offWhite, borderColor: C.grayMid }}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: `${C.feldgrau}15` }}>
+                <Store size={15} color={C.feldgrau} />
+              </div>
+              <div>
+                <p className="font-bold text-[13px] font-serif" style={{ color: C.feldgrau }}>
+                  Canais de Venda — Mês Atual
+                </p>
+                <p className="text-[10px]" style={{ color: C.textMuted }}>
+                  Apenas pedidos com status <strong>Recebido</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* Venda Direta */}
+              <div className="rounded-xl p-4 border"
+                style={{ background: '#f2faf4', borderColor: `${C.asparagus}40` }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center"
+                    style={{ background: `${C.asparagus}25` }}>
+                    <Store size={12} color={C.asparagus} />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wide"
+                    style={{ color: C.asparagus }}>Venda Direta</span>
+                </div>
+                <p className="font-bold text-[22px] font-serif leading-none mb-0.5"
+                  style={{ color: C.asparagus }}>{brl(canalSplit.direto.value)}</p>
+                <p className="text-[10px] font-semibold" style={{ color: C.asparagus, opacity: 0.7 }}>
+                  {canalSplit.direto.count} pedido{canalSplit.direto.count !== 1 ? 's' : ''} · {diretoPct.toFixed(0)}%
+                </p>
+              </div>
+
+              {/* iFood */}
+              <div className="rounded-xl p-4 border"
+                style={{ background: '#fff3ee', borderColor: '#ea1d2c40' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center"
+                    style={{ background: '#ea1d2c20' }}>
+                    <Bike size={12} color="#ea1d2c" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wide"
+                    style={{ color: '#ea1d2c' }}>iFood</span>
+                </div>
+                <p className="font-bold text-[22px] font-serif leading-none mb-0.5"
+                  style={{ color: '#ea1d2c' }}>{brl(canalSplit.ifood.value)}</p>
+                <p className="text-[10px] font-semibold" style={{ color: '#ea1d2c', opacity: 0.7 }}>
+                  {canalSplit.ifood.count} pedido{canalSplit.ifood.count !== 1 ? 's' : ''} · {ifoodPct.toFixed(0)}%
+                </p>
+              </div>
+            </div>
+
+            {/* Split bar */}
+            {total > 0 && (
+              <div>
+                <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: C.grayLt }}>
+                  <div className="h-full transition-all duration-700 rounded-l-full"
+                    style={{ width: `${diretoPct}%`, background: C.asparagus }} />
+                  <div className="h-full transition-all duration-700 rounded-r-full"
+                    style={{ width: `${ifoodPct}%`, background: '#ea1d2c' }} />
+                </div>
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-[10px] font-semibold" style={{ color: C.asparagus }}>
+                    Direta {diretoPct.toFixed(1)}%
+                  </span>
+                  <span className="text-[10px] font-semibold" style={{ color: '#ea1d2c' }}>
+                    iFood {ifoodPct.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
+            {total === 0 && (
+              <p className="text-center text-[11px] py-2" style={{ color: C.textMuted }}>
+                Nenhum pedido recebido este mês ainda.
+              </p>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── CHART ──────────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border p-5" style={{ borderColor: C.grayMid }}>
