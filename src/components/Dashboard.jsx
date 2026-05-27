@@ -129,7 +129,11 @@ export default function Dashboard() {
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const { active, monthly, today, statusSummary, chartData } = useMemo(() => {
+    // active: não cancelados → usado no painel operacional
     const active = pedidos.filter(p => p['Status'] !== 'Cancelado')
+
+    // billable: só "Recebido" → base de todo faturamento
+    const billable = pedidos.filter(p => p['Status'] === 'Recebido')
 
     const parseDate = (str) => {
       const parts = str?.split(' ')[0]?.split('/')
@@ -137,12 +141,12 @@ export default function Dashboard() {
       return { d: parseInt(parts[0]), m: parseInt(parts[1]) - 1, y: parseInt(parts[2]) }
     }
 
-    const monthly = active.filter(p => {
+    const monthly = billable.filter(p => {
       const dt = parseDate(p['Data/Hora'])
       return dt && dt.m === curMonth && dt.y === curYear
     })
 
-    const today = active.filter(p => p['Data/Hora']?.split(' ')[0] === todayStr)
+    const today = billable.filter(p => p['Data/Hora']?.split(' ')[0] === todayStr)
 
     const statusSummary = Object.keys(STATUS_META).map(s => ({
       status: s,
@@ -151,11 +155,11 @@ export default function Dashboard() {
                 .reduce((sum, p) => sum + (parseFloat(p['Valor Total']) || 0), 0),
     }))
 
-    // Chart: last 14 days
+    // Chart: last 14 days — só pedidos com status Recebido
     const chartData = Array.from({ length: 14 }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() - (13 - i))
       const dStr = d.toLocaleDateString('pt-BR')
-      const rev = active
+      const rev = billable
         .filter(p => p['Data/Hora']?.split(' ')[0] === dStr)
         .reduce((s, p) => s + (parseFloat(p['Valor Total']) || 0), 0)
       return {
