@@ -6,7 +6,7 @@ import {
   Minus, Store, Bike,
 } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts'
@@ -607,12 +607,6 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={230}>
             <BarChart data={chartWithGoal} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
               barSize={18}>
-              <defs>
-                <linearGradient id="gradBar" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={C.feldgrau} stopOpacity={0.9} />
-                  <stop offset="100%" stopColor={C.feldgrau} stopOpacity={0.5} />
-                </linearGradient>
-              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={C.grayLt} vertical={false} />
               <XAxis dataKey="dia"
                 tick={{ fontSize: 10, fill: C.textMuted }}
@@ -631,7 +625,15 @@ export default function Dashboard() {
                 strokeWidth={1.5}
                 label={{ value: 'Meta', position: 'right', fontSize: 9, fill: C.asparagus }}
               />
-              <Bar dataKey="Faturamento" fill="url(#gradBar)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Faturamento" radius={[4, 4, 0, 0]}>
+                {chartWithGoal.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.Faturamento >= success.daily ? C.asparagus : '#e05252'}
+                    fillOpacity={entry.Faturamento === 0 ? 0.35 : 0.9}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
