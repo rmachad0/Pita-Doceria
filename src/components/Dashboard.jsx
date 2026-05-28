@@ -135,8 +135,12 @@ export default function Dashboard() {
     // billable: só "Recebido" → base de todo faturamento
     const billable = pedidos.filter(p => p['Status'] === 'Recebido')
 
+    // toLocaleString('pt-BR') gera "27/05/2026, 11:04:15" — a vírgula após a data
+    // quebra a comparação. datePart remove a vírgula para normalizar.
+    const datePart = (str) => str?.split(' ')[0]?.replace(',', '') ?? ''
+
     const parseDate = (str) => {
-      const parts = str?.split(' ')[0]?.split('/')
+      const parts = datePart(str).split('/')
       if (!parts || parts.length < 3) return null
       return { d: parseInt(parts[0]), m: parseInt(parts[1]) - 1, y: parseInt(parts[2]) }
     }
@@ -146,7 +150,7 @@ export default function Dashboard() {
       return dt && dt.m === curMonth && dt.y === curYear
     })
 
-    const today = billable.filter(p => p['Data/Hora']?.split(' ')[0] === todayStr)
+    const today = billable.filter(p => datePart(p['Data/Hora']) === todayStr)
 
     const statusSummary = Object.keys(STATUS_META).map(s => ({
       status: s,
@@ -160,7 +164,7 @@ export default function Dashboard() {
       const d = new Date(); d.setDate(d.getDate() - (13 - i))
       const dStr = d.toLocaleDateString('pt-BR')
       const rev = billable
-        .filter(p => p['Data/Hora']?.split(' ')[0] === dStr)
+        .filter(p => datePart(p['Data/Hora']) === dStr)
         .reduce((s, p) => s + (parseFloat(p['Valor Total']) || 0), 0)
       return {
         dia: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
