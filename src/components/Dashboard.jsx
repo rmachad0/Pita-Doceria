@@ -614,9 +614,10 @@ export default function Dashboard() {
                 tick={{ fontSize: 10, fill: C.textMuted }}
                 tickLine={false} axisLine={false} />
               <YAxis
+                domain={[0, dataMax => Math.ceil(Math.max(dataMax, success.daily) * 1.2)]}
                 tick={{ fontSize: 10, fill: C.textMuted }}
                 tickLine={false} axisLine={false}
-                tickFormatter={v => v === 0 ? '' : `${(v / 1000).toFixed(v < 1000 ? 1 : 0)}k`}
+                tickFormatter={v => v === 0 ? '' : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`}
               />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: C.grayLt }} />
               <ReferenceLine
