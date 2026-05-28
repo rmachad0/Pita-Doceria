@@ -140,6 +140,43 @@ export async function excluirPedido(numeroPedido) {
   return error ? null : true
 }
 
+// ── Gastos Extras ─────────────────────────────────────────────────────────────
+
+export async function salvarGastoExtra({ descricao, valor, data }) {
+  const { error } = await supabase.from('gastos_extras').insert([{
+    descricao,
+    valor:  parseFloat(valor),
+    data:   data || new Date().toISOString().split('T')[0],
+  }])
+  return error ? null : true
+}
+
+export async function carregarGastosExtras(mes, ano) {
+  const inicio = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
+  const fim    = `${ano}-${String(mes + 1).padStart(2, '0')}-31`
+  const { data, error } = await supabase
+    .from('gastos_extras')
+    .select('*')
+    .gte('data', inicio)
+    .lte('data', fim)
+    .order('data', { ascending: false })
+  if (error) return []
+  return data.map(r => ({
+    id:        r.id,
+    descricao: r.descricao,
+    valor:     parseFloat(r.valor),
+    data:      r.data,
+  }))
+}
+
+export async function excluirGastoExtra(id) {
+  const { error } = await supabase
+    .from('gastos_extras')
+    .delete()
+    .eq('id', id)
+  return error ? null : true
+}
+
 export async function carregarPedidos() {
   const { data, error } = await supabase
     .from('pedidos')

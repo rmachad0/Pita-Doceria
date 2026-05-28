@@ -3,14 +3,19 @@ import {
   Target, TrendingUp, DollarSign, ShoppingBag, Clock,
   CheckCircle, AlertTriangle, Settings2, ChevronDown, ChevronUp,
   BarChart3, Zap, Award, RefreshCw, Loader, Package, XCircle,
-  Minus, Store, Bike,
+  Minus, Store, Bike, AlertCircle, Plus, Trash2,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts'
-import { carregarPedidos } from '../services/supabase-integration'
+import {
+  carregarPedidos,
+  salvarGastoExtra,
+  carregarGastosExtras,
+  excluirGastoExtra,
+} from '../services/supabase-integration'
 
 // ── Brand colors (same as App.jsx) ───────────────────────────────────────────
 const C = {
@@ -110,13 +115,43 @@ export default function Dashboard() {
   const [loading, setLoading]   = useState(false)
   const [lastSync, setLastSync] = useState(null)
 
+  // ── Gastos extras ─────────────────────────────────────────────────────────
+  const [extras, setExtras]         = useState([])
+  const [showExtras, setShowExtras] = useState(false)
+  const [extraDesc, setExtraDesc]   = useState('')
+  const [extraVal, setExtraVal]     = useState('')
+  const [extraDate, setExtraDate]   = useState(() => new Date().toISOString().split('T')[0])
+  const [savingExtra, setSavingExtra] = useState(false)
+
+  const loadExtras = useCallback(async () => {
+    const now = new Date()
+    const data = await carregarGastosExtras(now.getMonth(), now.getFullYear())
+    setExtras(data)
+  }, [])
+
+  const handleAddExtra = async () => {
+    if (!extraDesc.trim() || !extraVal || parseFloat(extraVal) <= 0) return
+    setSavingExtra(true)
+    const ok = await salvarGastoExtra({ descricao: extraDesc.trim(), valor: extraVal, data: extraDate })
+    if (ok) {
+      setExtraDesc(''); setExtraVal(''); setExtraDate(new Date().toISOString().split('T')[0])
+      await loadExtras()
+    }
+    setSavingExtra(false)
+  }
+
+  const handleDeleteExtra = async (id) => {
+    await excluirGastoExtra(id)
+    setExtras(prev => prev.filter(e => e.id !== id))
+  }
+
   const loadData = useCallback(async () => {
     setLoading(true)
-    const data = await carregarPedidos()
+    const [data] = await Promise.all([carregarPedidos(), loadExtras()])
     setPedidos(data)
     setLastSync(new Date())
     setLoading(false)
-  }, [])
+  }, [loadExtras])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -218,13 +253,15 @@ export default function Dashboard() {
   const hoursWorkedMonth   = Math.max(workDaysElapsed * hpd, 1)
   const grossHourly        = grossMonthly / hoursWorkedMonth
 
-  const varCostMonthly = grossMonthly * (cfg.variableCostPct / 100)
-  const totalCostMonthly = cfg.fixedCosts + varCostMonthly
+  const extrasMonthly = extras.reduce((s, e) => s + e.valor, 0)
 
-  const varCostToday = grossToday * (cfg.variableCostPct / 100)
+  const varCostMonthly   = grossMonthly * (cfg.variableCostPct / 100)
+  const totalCostMonthly = cfg.fixedCosts + varCostMonthly + extrasMonthly
+
+  const varCostToday   = grossToday * (cfg.variableCostPct / 100)
   const totalCostToday = (cfg.fixedCosts / wd) + varCostToday
 
-  const varCostHourly = grossHourly * (cfg.variableCostPct / 100)
+  const varCostHourly   = grossHourly * (cfg.variableCostPct / 100)
   const totalCostHourly = (cfg.fixedCosts / wd / hpd) + varCostHourly
 
   const netMonthly = grossMonthly - totalCostMonthly
@@ -457,6 +494,7 @@ export default function Dashboard() {
           ))}
           <p className="text-[9px] mt-2" style={{ color: '#c0392b', opacity: 0.65 }}>
             Fixos + {cfg.variableCostPct}% variáveis s/ receita
+            {extrasMonthly > 0 && ` + ${brl(extrasMonthly)} imprevistos`}
           </p>
         </div>
 
@@ -496,6 +534,134 @@ export default function Dashboard() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* ── GASTOS EXTRAS ──────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border" style={{ borderColor: C.grayMid }}>
+        {/* Header */}
+        <button
+          onClick={() => setShowExtras(s => !s)}
+          className="w-full flex items-center justify-between px-5 py-4"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: '#fff3e0' }}>
+              <AlertCircle size={14} color="#e67e22" />
+            </div>
+            <div className="text-left">
+              <p className="font-bold text-sm font-serif" style={{ color: C.feldgrau }}>
+                Gastos Extras / Imprevistos
+              </p>
+              <p className="text-[10px]" style={{ color: C.textMuted }}>
+                {extras.length === 0
+                  ? 'Nenhum gasto registrado este mês'
+                  : `${extras.length} gasto${extras.length > 1 ? 's' : ''} · ${brl(extrasMonthly)} deduzidos do lucro`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {extrasMonthly > 0 && (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                style={{ background: '#fff3e0', color: '#e67e22' }}>
+                -{brl(extrasMonthly)}
+              </span>
+            )}
+            {showExtras
+              ? <ChevronUp size={16} color={C.feldgrauLt} />
+              : <ChevronDown size={16} color={C.feldgrauLt} />}
+          </div>
+        </button>
+
+        {showExtras && (
+          <div className="px-5 pb-5 border-t" style={{ borderColor: C.grayLt }}>
+
+            {/* Formulário de adição */}
+            <div className="mt-4 grid gap-2"
+              style={{ gridTemplateColumns: '1fr auto auto auto' }}>
+              <input
+                type="text"
+                placeholder="Ex: Conserto da batedeira"
+                value={extraDesc}
+                onChange={e => setExtraDesc(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddExtra()}
+                className="px-3 py-2 text-[13px] rounded-lg border w-full"
+                style={{ borderColor: C.grayMid, color: C.textDark }}
+              />
+              <input
+                type="number"
+                placeholder="Valor (R$)"
+                min="0" step="0.01"
+                value={extraVal}
+                onChange={e => setExtraVal(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddExtra()}
+                className="px-3 py-2 text-[13px] rounded-lg border w-28"
+                style={{ borderColor: C.grayMid, color: C.textDark }}
+              />
+              <input
+                type="date"
+                value={extraDate}
+                onChange={e => setExtraDate(e.target.value)}
+                className="px-3 py-2 text-[13px] rounded-lg border w-36"
+                style={{ borderColor: C.grayMid, color: C.textDark }}
+              />
+              <button
+                onClick={handleAddExtra}
+                disabled={savingExtra || !extraDesc.trim() || !extraVal}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-bold transition-opacity disabled:opacity-40"
+                style={{ background: C.feldgrau, color: 'white' }}
+              >
+                {savingExtra
+                  ? <Loader size={14} className="animate-spin" />
+                  : <Plus size={14} />}
+                Adicionar
+              </button>
+            </div>
+
+            {/* Lista de extras */}
+            {extras.length > 0 ? (
+              <div className="mt-3 space-y-1.5">
+                {extras.map(e => (
+                  <div key={e.id}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg"
+                    style={{ background: '#fff8f2', border: '1px solid #fde8cc' }}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <AlertCircle size={13} color="#e67e22" className="flex-shrink-0" />
+                      <span className="text-[13px] truncate" style={{ color: C.textDark }}>
+                        {e.descricao}
+                      </span>
+                      <span className="text-[10px] flex-shrink-0" style={{ color: C.textMuted }}>
+                        {new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="font-bold text-[13px] font-serif" style={{ color: '#e67e22' }}>
+                        -{brl(e.valor)}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteExtra(e.id)}
+                        className="p-1 rounded hover:bg-red-50 transition-colors">
+                        <Trash2 size={13} color="#c0392b" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {/* Total */}
+                <div className="flex justify-between items-center pt-2 mt-1 border-t"
+                  style={{ borderColor: '#fde8cc' }}>
+                  <span className="text-[11px] font-bold uppercase tracking-wide"
+                    style={{ color: '#e67e22' }}>Total imprevistos do mês</span>
+                  <span className="font-bold text-[14px] font-serif" style={{ color: '#e67e22' }}>
+                    -{brl(extrasMonthly)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-[12px] text-center py-4" style={{ color: C.textMuted }}>
+                Nenhum gasto extra registrado neste mês.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── CANAL SPLIT ────────────────────────────────────────────────────── */}
