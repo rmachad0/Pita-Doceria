@@ -206,10 +206,10 @@ const RECIPES = {
 }
 
 const TRENDS = [
-  { name: 'Ovo Pão de Mel Gourmet', trend: 'Alta', tag: 'Tendência', range: 'R$ 65,00 a R$ 85,00', desc: 'Chocolate belga premium, recheio cremoso. Ideal para datas especiais e Páscoa. Alta margem por exclusividade.' },
-  { name: 'Cookies Recheados / NYC Style', trend: 'Explosiva', tag: 'Explosivo', range: 'R$ 12,00 a R$ 18,00 / unid.', desc: 'Cookies gigantes americanos com recheio generoso. Tendência dominante nas docerias de 2025-2026.' },
-  { name: 'Pão de Mel Colmeia Personalizado', trend: 'Alta — Eventos', tag: 'Eventos', range: 'R$ 8,00 a R$ 12,00 / unid.', desc: 'Muito procurado para lembrancinhas, casamentos e corporativos. Alta margem via personalização.' },
-  { name: 'Bolos Decorados com Buttercream', trend: 'Altíssima — Casamentos', tag: 'Premium', range: 'R$ 150,00 a R$ 220,00 / kg', desc: 'Decorações florais artísticas. Casamentos e celebrações premium. Ticket médio elevado.' },
+  { name: 'Chocolate de Dubai / Pistache', trend: 'Viral — 2026', tag: 'Viral', range: 'R$ 25,00 a R$ 55,00 / unid.', desc: 'Maior fenômeno da confeitaria em 2026. Recheio de pistache com kataifi (ou bifum crocante como alternativa nacional). Alto ticket e altíssima demanda nas redes.' },
+  { name: 'Doces no Pote Individual', trend: 'Explosiva — Delivery', tag: 'Delivery', range: 'R$ 15,00 a R$ 28,00 / unid.', desc: 'Porções individuais em potes, ideais para delivery e encomendas. Baixo custo de produção, alta percepção de valor e fácil de transportar.' },
+  { name: 'Brigadeiro Gourmet de Mesa', trend: 'Sempre Alta — Festas', tag: 'Clássico', range: 'R$ 5,00 a R$ 9,00 / unid.', desc: 'Sabores premium como pistache, ninho trufado, maracujá e ferrero dominam encomendas de festas, casamentos e eventos corporativos em 2026.' },
+  { name: 'Festival de Fatias / X Bolo', trend: 'Alta — Vitrine 2026', tag: 'Tendência', range: 'R$ 18,00 a R$ 45,00 / fatia', desc: 'Bolos vendidos em fatias individuais generosas. Reduz desperdício, aumenta o ticket por porção e é ideal para vitrine física e divulgação nas redes.' },
 ]
 
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(isNaN(v) || !isFinite(v) ? 0 : v)
@@ -886,7 +886,7 @@ export default function App() {
               </div>
               <div>
                 <p className="font-bold text-[17px] font-serif" style={{ color: C.feldgrau }}>Radar de Tendências de Confeitaria</p>
-                <p className="text-[11px]" style={{ color: C.textMuted }}>Pesquisa de mercado · 2026</p>
+                <p className="text-[11px]" style={{ color: C.textMuted }}>Pesquisa de mercado · Atualizado maio/2026</p>
               </div>
             </div>
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
