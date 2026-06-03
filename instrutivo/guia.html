@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PiTa Doceria — Guia de Uso</title>
+  <style>
+    :root {
+      --feldgrau:  #525F54;
+      --peach:     #FABD97;
+      --asparagus: #6CAE75;
+      --offwhite:  #F5F0EB;
+      --dark:      #2E3830;
+      --text:      #3A3A3A;
+      --muted:     #7A7A7A;
+      --border:    #D8D0C8;
+      --red:       #C0392B;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--offwhite);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── COVER ────────────────────────────────────────────── */
+    .cover {
+      background: var(--feldgrau);
+      color: white;
+      padding: 64px 48px 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: rgba(250,189,151,.12);
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; left: 200px;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(108,174,117,.10);
+    }
+    .cover-logo {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      color: var(--peach);
+      margin-bottom: 4px;
+    }
+    .cover-logo span { color: white; font-style: italic; }
+    .cover-sub {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.55);
+      margin-bottom: 32px;
+    }
+    .cover h1 {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .cover p {
+      font-size: 16px;
+      color: rgba(255,255,255,.75);
+      max-width: 520px;
+    }
+    .cover-badge {
+      display: inline-block;
+      margin-top: 28px;
+      background: var(--peach);
+      color: var(--dark);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+      letter-spacing: .5px;
+    }
+
+    /* ── TOC ──────────────────────────────────────────────── */
+    .toc {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 32px 48px;
+    }
+    .toc h2 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+    .toc-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--border);
+      transition: all .15s;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .toc-item:hover {
+      background: var(--offwhite);
+      border-color: var(--feldgrau);
+      color: var(--feldgrau);
+    }
+    .toc-num {
+      background: var(--feldgrau);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── MAIN ─────────────────────────────────────────────── */
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 32px 80px;
+    }
+
+    /* ── SECTION ──────────────────────────────────────────── */
+    .section {
+      margin-bottom: 72px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .step-badge {
+      background: var(--feldgrau);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+    .section-desc {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── SCREENSHOT ───────────────────────────────────────── */
+    .screenshot-wrap {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0,0,0,.10);
+      margin-bottom: 20px;
+    }
+    .screenshot-wrap img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ── CALLOUTS ─────────────────────────────────────────── */
+    .callouts {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .callout {
+      display: flex;
+      gap: 12px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .callout-num {
+      background: var(--peach);
+      color: var(--dark);
+      font-size: 12px;
+      font-weight: 800;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .callout-num.green  { background: var(--asparagus); color: white; }
+    .callout-num.dark   { background: var(--feldgrau);  color: white; }
+    .callout-num.red    { background: var(--red);        color: white; }
+    .callout strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 3px;
+    }
+    .callout p {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── TIP BOX ──────────────────────────────────────────── */
+    .tip {
+      display: flex;
+      gap: 12px;
+      background: #f0faf2;
+      border: 1px solid #b8e0c0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #2d6a3a;
+    }
+    .tip-icon { font-size: 18px; flex-shrink: 0; }
+    .tip strong { font-weight: 700; }
+
+    .warn {
+      background: #fff8ed;
+      border-color: #f0c96a;
+      color: #7a5800;
+    }
+
+    /* ── DIVIDER ──────────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 72px;
+    }
+
+    /* ── FOOTER ───────────────────────────────────────────── */
+    .footer {
+      background: var(--feldgrau);
+      color: rgba(255,255,255,.55);
+      text-align: center;
+      padding: 28px;
+      font-size: 12px;
+    }
+    .footer strong { color: var(--peach); }
+
+    /* ── PRINT ────────────────────────────────────────────── */
+    @media print {
+      .toc { display: none; }
+      .section { page-break-inside: avoid; }
+      body { background: white; }
+      .cover { background: var(--feldgrau) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════ COVER ══════════════════════════════════╗ -->
+<div class="cover">
+  <div class="cover-logo">P<span>i</span>Ta<sup style="font-size:18px; vertical-align:super;">®</sup></div>
+  <div class="cover-sub">Software de Precificação · Doceria Artesanal</div>
+  <h1>Guia Completo de Uso</h1>
+  <p>Passo a passo ilustrado com imagens do próprio software para calcular preços, registrar pedidos e acompanhar a saúde financeira da sua doceria.</p>
+  <div class="cover-badge">9 passos ilustrados · 2026</div>
+</div>
+
+<!-- ╔══════════════════════════════════ TOC ════════════════════════════════════╗ -->
+<div class="toc">
+  <h2>Índice</h2>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">1</span> Visão Geral</a>
+    <a class="toc-item" href="#s2"><span class="toc-num">2</span> Custos Fixos</a>
+    <a class="toc-item" href="#s3"><span class="toc-num">3</span> Tabela de Ingredientes</a>
+    <a class="toc-item" href="#s4"><span class="toc-num">4</span> Canal, Margem e Salvar</a>
+    <a class="toc-item" href="#s5"><span class="toc-num">5</span> Histórico de Precificações</a>
+    <a class="toc-item" href="#s6"><span class="toc-num">6</span> Editar Precificação Salva</a>
+    <a class="toc-item" href="#s7"><span class="toc-num">7</span> Registrar Pedidos</a>
+    <a class="toc-item" href="#s8"><span class="toc-num">8</span> Painel Financeiro</a>
+    <a class="toc-item" href="#s9"><span class="toc-num">9</span> Canais e Gráficos</a>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════ MAIN ═══════════════════════════════════╗ -->
+<div class="main">
+
+  <!-- ── PASSO 1 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="step-badge">1</div>
+      <div>
+        <div class="section-title">Visão Geral do Software</div>
+        <div class="section-desc">Conheça as 4 abas e o cabeçalho com o custo por hora da estrutura.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/01_visao_geral.png" alt="Visão geral do PiTa Software" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Cabeçalho — Custo/Hora</strong>
+          <p>Calculado automaticamente a partir dos custos fixos. Mostra quanto custa cada hora de funcionamento da sua doceria.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Aba Precificação</strong>
+          <p>Monte a receita, informe ingredientes e veja o preço sugerido instantaneamente.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Aba Histórico</strong>
+          <p>Todas as precificações salvas, com margem, saúde financeira e canal de venda.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Aba Pedidos</strong>
+          <p>Registre pedidos de clientes com data de entrega, forma de pagamento e canal.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">4</div>
+        <div>
+          <strong>Aba Painel Financeiro</strong>
+          <p>Acompanhe faturamento, ponto de equilíbrio, lucro líquido e metas do mês.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">B</div>
+        <div>
+          <strong>Decomposição de Custos</strong>
+          <p>Painel lateral que decompõe o custo em Ingredientes, Embalagem e Estrutura em tempo real.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 2 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="step-badge">2</div>
+      <div>
+        <div class="section-title">Configurar Custos Fixos</div>
+        <div class="section-desc">Faça isso uma vez. Esses valores alimentam o custo/hora que entra em cada receita.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/02_custos_fixos.png" alt="Configurações de custos fixos expandidas" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Clique em "Configurações de Custos Fixos"</strong>
+          <p>O painel expande e libera os campos de entrada. Clique novamente para recolher.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Água e Energia (R$)</strong>
+          <p>Informe o valor médio mensal das contas. Inclua também internet, gás ou qualquer outro custo recorrente.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Aluguel (R$)</strong>
+          <p>Valor do aluguel do espaço de produção. Se trabalha em casa, calcule a proporção do espaço usado.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">4</div>
+        <div>
+          <strong>Salário Desejado (R$)</strong>
+          <p>O quanto você quer receber por mês. Esse valor é incluído no custo de estrutura de cada produto.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">5</div>
+        <div>
+          <strong>Horas/Mês</strong>
+          <p>Quantidade de horas que você trabalha por mês. Padrão: 208 h (8h/dia × 26 dias).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <div class="tip-icon">💡</div>
+      <div><strong>Dica:</strong> Após alterar qualquer campo, o <em>Custo/Hora</em> no cabeçalho é recalculado automaticamente. Não é necessário salvar.</div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 3 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="step-badge">3</div>
+      <div>
+        <div class="section-title">Tabela de Ingredientes</div>
+        <div class="section-desc">Cadastre cada ingrediente da receita para calcular o custo exato por unidade produzida.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/03_ingredientes.png" alt="Tabela de ingredientes com painel de resultados" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Nome do Produto, Rendimento e Embalagem</strong>
+          <p>Defina o nome, quantas unidades a receita rende e o custo da embalagem (caixa, saquinho) por unidade.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Preparo (min)</strong>
+          <p>Tempo total de produção em minutos. Junto com o custo/hora, gera o custo de estrutura por lote.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>+ Adicionar Ingrediente</strong>
+          <p>Clique para inserir uma nova linha na tabela. Preencha: nome do ingrediente, preço do pacote, peso/volume total do pacote e quantidade usada na receita.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">4</div>
+        <div>
+          <strong>Custo Real (calculado)</strong>
+          <p>Calculado automaticamente: (Preço Pacote ÷ Peso Total) × Qtd Usada. Aparece na última coluna de cada linha.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Painel de Resultados</strong>
+          <p>Atualizado em tempo real: mostra Preço Sugerido Ideal, Lucro Líquido/unid. e Margem Líquida Real com diagnóstico de saúde.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">B</div>
+        <div>
+          <strong>Total ingredientes (lote)</strong>
+          <p>Barra verde no rodapé da tabela — soma todos os ingredientes do lote para conferência rápida.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 4 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="step-badge">4</div>
+      <div>
+        <div class="section-title">Canal de Venda, Margem e Salvar</div>
+        <div class="section-desc">Escolha onde vai vender, defina a margem desejada e salve a precificação na nuvem.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/04_resultados.png" alt="Canal de venda, margem, salvar precificação e radar de tendências" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Canal de Venda</strong>
+          <p><em>Venda Direta / Balcão</em> aplica 0% de taxa. <em>iFood / Delivery</em> aplica 25% de taxa de plataforma, ajustando o preço sugerido automaticamente.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Margem de Lucro Desejada (%)</strong>
+          <p>Percentual mínimo de lucro que você quer sobre o preço de venda. Valor padrão: 30%.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Imposto / Nota Fiscal (%)</strong>
+          <p>Se emitir NF, informe o percentual de imposto. Deixe em 0 se não emitir.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">4</div>
+        <div>
+          <strong>Preço Praticado (opcional)</strong>
+          <p>Se já pratica um preço diferente do sugerido, informe aqui para calcular a margem real que está obtendo.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">5</div>
+        <div>
+          <strong>Salvar Precificação</strong>
+          <p>Salva todos os dados na nuvem (Supabase). O registro aparecerá na aba <em>Histórico</em>.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Radar de Tendências</strong>
+          <p>Pesquisa de mercado 2026 com preços médios praticados para produtos similares na sua região.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip warn">
+      <div class="tip-icon">⚠️</div>
+      <div><strong>Atenção:</strong> A margem mínima saudável é <strong>25%</strong>. Entre 11% e 24% o sistema exibe alerta laranja. Abaixo de 11% é classificado como <em>Perigosa</em> (vermelho).</div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 5 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="step-badge">5</div>
+      <div>
+        <div class="section-title">Histórico de Precificações</div>
+        <div class="section-desc">Todos os produtos salvos em um painel com saúde financeira por cor e canal de venda.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/05_historico.png" alt="Aba histórico com tabela de precificações salvas" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Dados em nuvem — sincronizados</strong>
+          <p>O histórico carrega do Supabase ao abrir a aba. Clique em <em>Atualizar</em> para buscar registros mais recentes.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Custo Base e Preço Final</strong>
+          <p>Custo base é a soma de ingredientes + embalagem + estrutura por unidade. Preço final é o valor salvo no momento da precificação.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">3</div>
+        <div>
+          <strong>Coluna Saúde</strong>
+          <p><span style="color:#6CAE75; font-weight:700;">Saudável</span> ≥ 25% · <span style="color:#d4a017; font-weight:700;">Alerta</span> 11–24% · <span style="color:#c0392b; font-weight:700;">Perigosa</span> &lt; 11%</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">4</div>
+        <div>
+          <strong>Coluna Canal</strong>
+          <p>Indica se a precificação foi feita para Venda Direta ou iFood.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Botão Editar</strong>
+          <p>Abre o modal de edição completo. Permite corrigir ingredientes, preço final, canal e rendimento sem precisar refazer a precificação do zero.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 6 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <div class="step-badge">6</div>
+      <div>
+        <div class="section-title">Editar Precificação Salva</div>
+        <div class="section-desc">Corrija ingredientes, quantidades, preço ou canal de qualquer registro do histórico.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/06_modal_editar.png" alt="Modal de edição de precificação salva" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Nome do Produto e Canal de Venda</strong>
+          <p>Altere o nome ou troque entre Venda Direta e iFood. O cálculo de margem é refeito automaticamente.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Rendimento, Embalagem e Preparo</strong>
+          <p>Atualize quantas unidades a receita rende, o custo da embalagem por unidade e o tempo de preparo em minutos.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Tabela de Ingredientes</strong>
+          <p>Edite cada linha diretamente. Use <em>+ Adicionar</em> para novos ingredientes ou a lixeira para remover uma linha.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">4</div>
+        <div>
+          <strong>Salvar Alterações</strong>
+          <p>Atualiza o registro no banco de dados. A tabela do histórico é atualizada imediatamente na tela.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num red">!</div>
+        <div>
+          <strong>Aviso de dados pré-carregados</strong>
+          <p>Registros antigos (salvos antes da atualização) mostram um aviso amarelo quando os ingredientes são carregados da receita atual. Revise antes de salvar.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <div class="tip-icon">💡</div>
+      <div><strong>Dica:</strong> Feche o modal clicando no <strong>✕</strong> no canto superior direito ou no botão <em>Cancelar</em> para descartar as alterações.</div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 7 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="step-badge">7</div>
+      <div>
+        <div class="section-title">Registrar Pedidos</div>
+        <div class="section-desc">Cadastre cada venda com cliente, produto, data de entrega e forma de pagamento.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/07_pedidos.png" alt="Aba pedidos com formulário e lista de pedidos registrados" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Formulário — Campos obrigatórios *</strong>
+          <p>Nome do cliente, WhatsApp, produto e preço unitário são obrigatórios. Os demais são opcionais mas recomendados.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div>
+          <strong>Data de Entrega</strong>
+          <p>Selecione no calendário. A data aparece na lista de pedidos para facilitar o controle de produção.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Forma de Pagamento e Canal</strong>
+          <p>Pix, Dinheiro, Cartão ou outro. Canal indica se foi Venda Direta ou iFood — alimenta o Painel Financeiro.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">4</div>
+        <div>
+          <strong>Pedidos Registrados</strong>
+          <p>Lista em tempo real de todos os pedidos. Clique no status para alterar (Recebido → Em produção → Pronto → Entregue).</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Imprimir</strong>
+          <p>Gera uma folha de pedido formatada para entregar à produção ou arquivar.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num red">B</div>
+        <div>
+          <strong>Excluir</strong>
+          <p>Remove o pedido permanentemente. Use apenas para cancelamentos. Esta ação não pode ser desfeita.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 8 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <div class="step-badge">8</div>
+      <div>
+        <div class="section-title">Painel Financeiro — Visão Geral</div>
+        <div class="section-desc">Monitore ponto de equilíbrio, meta de sucesso e o progresso real do mês.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/08_painel_financeiro.png" alt="Painel financeiro com ponto de equilíbrio, meta e faturamento" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div>
+          <strong>Ponto de Equilíbrio</strong>
+          <p>Valor mínimo que você precisa faturar para cobrir todos os custos fixos do mês. Mostrado mensal, diário e por hora.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num green">2</div>
+        <div>
+          <strong>Meta de Sucesso</strong>
+          <p>Custos fixos + lucro desejado (configurável em <em>Configurações Financeiras</em>). É o valor que garante sua sustentabilidade.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Faturamento Bruto do Mês</strong>
+          <p>Soma de todos os pedidos com status <em>Recebido</em> no mês atual. Atualizado ao clicar em <em>Atualizar</em>.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">4</div>
+        <div>
+          <strong>Barras de Progresso</strong>
+          <p>Mostram em % quanto do ponto de equilíbrio e da meta de sucesso você já atingiu no mês.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Cards: Faturamento · Custos · Lucro</strong>
+          <p>Três cartões abaixo das barras detalham os valores mensal, hoje e por hora. Custos são estimados com base na margem média das precificações.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip warn">
+      <div class="tip-icon">⚙️</div>
+      <div><strong>Configurações Financeiras:</strong> clique em <em>Editável</em> no topo do painel para definir o lucro líquido desejado que compõe a <em>Meta de Sucesso</em>.</div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ── PASSO 9 ──────────────────────────────────────────────────────────── -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <div class="step-badge">9</div>
+      <div>
+        <div class="section-title">Canais de Venda e Gráfico de Faturamento</div>
+        <div class="section-desc">Veja a divisão entre Venda Direta e iFood e acompanhe a evolução dos últimos 14 dias.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/09_painel_graficos.png" alt="Canais de venda e gráfico de faturamento dos últimos 14 dias" />
+    </div>
+
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num green">1</div>
+        <div>
+          <strong>Venda Direta</strong>
+          <p>Total faturado via venda direta/balcão, com contagem de pedidos e percentual do total.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num red">2</div>
+        <div>
+          <strong>iFood</strong>
+          <p>Total faturado via iFood. A barra de proporção abaixo mostra visualmente o mix de canais do mês.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div>
+          <strong>Barra de Divisão de Canais</strong>
+          <p>Proporção verde (Direta) × vermelho (iFood). Quanto mais verde, menor a dependência de plataforma e maior a margem.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-num dark">A</div>
+        <div>
+          <strong>Gráfico — Últimos 14 Dias</strong>
+          <p>Barras diárias de faturamento. A linha tracejada indica a meta diária de sucesso — dias acima da linha são saudáveis.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <div class="tip-icon">📊</div>
+      <div><strong>Dica:</strong> O gráfico usa apenas pedidos com status <em>Recebido</em>. Atualize o status dos pedidos entregues para manter os dados precisos.</div>
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<!-- ── FOOTER ──────────────────────────────────────────────────────────────── -->
+<div class="footer">
+  <strong>PiTa®</strong> Software de Precificação · Doceria Artesanal · Sinop, MT · 2026<br />
+  Qualidade · Criatividade · Paixão · Acolhimento
+</div>
+
+</body>
+</html>
