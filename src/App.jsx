@@ -364,7 +364,8 @@ function doPrint(order) {
 let idSeq = 1000
 
 // ── PEDIDO VAZIO ──────────────────────────────────────────────────────────────
-const PEDIDO_VAZIO = { clientName: '', phone: '', product: '', qty: 1, unitPrice: '', deliveryDate: '', notes: '', payment: 'Pix', canal: 'direto' }
+const PEDIDO_VAZIO  = { clientName: '', phone: '', deliveryDate: '', notes: '', payment: 'Pix', canal: 'direto' }
+const ITEM_VAZIO    = () => ({ id: Date.now() + Math.random(), produto: '', qty: 1, unitPrice: '' })
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
@@ -449,6 +450,7 @@ export default function App() {
   const [loadingPed, setLoadingPed]   = useState(false)
   const [pedLoaded, setPedLoaded]     = useState(false)
   const [novoPedido, setNovoPedido]   = useState(PEDIDO_VAZIO)
+  const [itensPedido, setItensPedido] = useState([ITEM_VAZIO()])
   const [savingPed, setSavingPed]     = useState(false)
   const [pedMsg, setPedMsg]           = useState(null)
   const [printOrder, setPrintOrder]   = useState(null)
@@ -649,26 +651,36 @@ export default function App() {
 
   // ── Registrar pedido ──────────────────────────────────────────────────────
   const handleRegistrarPedido = async () => {
-    if (!novoPedido.clientName || !novoPedido.product || !novoPedido.unitPrice) return
+    const itensValidos = itensPedido.filter(i => i.produto.trim() && parseFloat(i.unitPrice) > 0)
+    if (!novoPedido.clientName || itensValidos.length === 0) return
     setSavingPed(true)
     setPedMsg(null)
-    const result = await registrarPedido(novoPedido)
+    const result = await registrarPedido({ ...novoPedido, itens: itensValidos })
     setSavingPed(false)
     if (result?.success) {
       setPedMsg({ ok: true, text: `Pedido ${result.numeroPedido} registrado com sucesso!` })
       setNovoPedido(PEDIDO_VAZIO)
+      setItensPedido([ITEM_VAZIO()])
       setPedLoaded(false)
       loadPedidos()
-      processarDescontoEstoquePedido(
-        novoPedido.product,
-        parseFloat(novoPedido.qty) || 1,
-        result.numeroPedido
-      ).catch(() => {})
+      // Desconta estoque para cada item
+      itensValidos.forEach(item => {
+        processarDescontoEstoquePedido(
+          item.produto,
+          parseInt(item.qty) || 1,
+          result.numeroPedido
+        ).catch(() => {})
+      })
     } else {
       setPedMsg({ ok: false, text: 'Erro ao registrar. Verifique a configuração do Supabase.' })
     }
     setTimeout(() => setPedMsg(null), 6000)
   }
+
+  // ── Helpers de itens do pedido ────────────────────────────────────────────
+  const addItemPedido    = () => setItensPedido(p => [...p, ITEM_VAZIO()])
+  const removeItemPedido = (id) => setItensPedido(p => p.length > 1 ? p.filter(i => i.id !== id) : p)
+  const updItemPedido    = (id, f, v) => setItensPedido(p => p.map(i => i.id === id ? { ...i, [f]: v } : i))
 
   // ── Handlers recipe / ingredients ─────────────────────────────────────────
   const loadRecipe = (key) => {
@@ -1262,26 +1274,15 @@ export default function App() {
             <SectionTitle icon={ClipboardList}>Registrar Novo Pedido</SectionTitle>
             <Toast msg={pedMsg} />
 
+            {/* Dados do cliente */}
             <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               <div>
                 <Label><span className="flex items-center gap-1"><MessageSquare size={10} /> Nome do Cliente *</span></Label>
                 <Input value={novoPedido.clientName} onChange={e => updPedido('clientName', e.target.value)} placeholder="Ex: Maria Silva" />
               </div>
               <div>
-                <Label><span className="flex items-center gap-1"><Phone size={10} /> WhatsApp *</span></Label>
+                <Label><span className="flex items-center gap-1"><Phone size={10} /> WhatsApp</span></Label>
                 <Input value={novoPedido.phone} onChange={e => updPedido('phone', e.target.value)} placeholder="+55 11 99999-9999" />
-              </div>
-              <div>
-                <Label><span className="flex items-center gap-1"><ChefHat size={10} /> Produto *</span></Label>
-                <Input value={novoPedido.product} onChange={e => updPedido('product', e.target.value)} placeholder="Ex: Ovo Pão de Mel" />
-              </div>
-              <div>
-                <Label>Quantidade</Label>
-                <Input type="number" value={novoPedido.qty} onChange={e => updPedido('qty', parseInt(e.target.value) || 1)} min="1" />
-              </div>
-              <div>
-                <Label><span className="flex items-center gap-1"><DollarSign size={10} /> Preço Unitário (R$) *</span></Label>
-                <Input type="number" step="0.01" value={novoPedido.unitPrice} onChange={e => updPedido('unitPrice', e.target.value)} placeholder="Ex: 12.90" />
               </div>
               <div>
                 <Label><span className="flex items-center gap-1"><Calendar size={10} /> Data de Entrega</span></Label>
@@ -1310,33 +1311,100 @@ export default function App() {
               </div>
             </div>
 
-            {/* Resumo rápido */}
-            {novoPedido.unitPrice && novoPedido.qty && (
-              <div className="rounded-lg px-4 py-3 mb-4 flex items-center justify-between" style={{ background: C.feldgrau }}>
-                <span className="text-[12px]" style={{ color: C.peachLt }}>Valor total do pedido:</span>
-                <span className="font-bold text-[20px] font-serif" style={{ color: C.peach }}>
-                  {brl((parseFloat(novoPedido.unitPrice) || 0) * (novoPedido.qty || 1))}
-                </span>
+            {/* Itens do pedido */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <Label><span className="flex items-center gap-1"><ChefHat size={10} /> Itens do Pedido *</span></Label>
+                <button
+                  onClick={addItemPedido}
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors hover:opacity-80"
+                  style={{ background: C.feldgrau, color: C.peach, borderColor: C.feldgrau }}>
+                  <Plus size={12} /> Adicionar Item
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {itensPedido.map((item, idx) => (
+                  <div key={item.id} className="flex gap-2 items-end p-3 rounded-xl border" style={{ background: C.offWhite, borderColor: C.grayLt }}>
+                    <div className="flex-1">
+                      <Label className="text-[10px]">Produto</Label>
+                      <Input
+                        value={item.produto}
+                        onChange={e => updItemPedido(item.id, 'produto', e.target.value)}
+                        placeholder="Ex: Pão de Mel"
+                      />
+                    </div>
+                    <div style={{ width: 70 }}>
+                      <Label className="text-[10px]">Qtd</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.qty}
+                        onChange={e => updItemPedido(item.id, 'qty', parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div style={{ width: 110 }}>
+                      <Label className="text-[10px]">Preço Unit. (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={e => updItemPedido(item.id, 'unitPrice', e.target.value)}
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div className="pb-1">
+                      <span className="block text-[10px] mb-1" style={{ color: C.textMuted }}>Subtotal</span>
+                      <span className="text-[13px] font-bold font-serif whitespace-nowrap" style={{ color: C.feldgrau }}>
+                        {brl((parseFloat(item.unitPrice) || 0) * (parseInt(item.qty) || 1))}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeItemPedido(item.id)}
+                      disabled={itensPedido.length === 1}
+                      className="pb-1 p-1.5 rounded-lg border transition-colors hover:bg-red-50"
+                      style={{ borderColor: itensPedido.length === 1 ? C.grayLt : '#f5b7b7', color: itensPedido.length === 1 ? C.grayMid : '#c0392b' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Resumo total */}
+            {itensPedido.some(i => parseFloat(i.unitPrice) > 0) && (
+              <div className="rounded-lg px-4 py-3 mb-4" style={{ background: C.feldgrau }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px]" style={{ color: C.peachLt }}>
+                    {itensPedido.filter(i => i.produto.trim()).length} item(ns) · Total do pedido:
+                  </span>
+                  <span className="font-bold text-[20px] font-serif" style={{ color: C.peach }}>
+                    {brl(itensPedido.reduce((s, i) => s + (parseFloat(i.unitPrice) || 0) * (parseInt(i.qty) || 1), 0))}
+                  </span>
+                </div>
               </div>
             )}
 
-            <button
-              onClick={handleRegistrarPedido}
-              disabled={savingPed || !novoPedido.clientName || !novoPedido.product || !novoPedido.unitPrice}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-[14px]"
-              style={{
-                background: savingPed || !novoPedido.clientName || !novoPedido.product || !novoPedido.unitPrice
-                  ? C.grayMid : C.feldgrau,
-                color: savingPed || !novoPedido.clientName || !novoPedido.product || !novoPedido.unitPrice
-                  ? C.white : C.peach,
-                cursor: savingPed || !novoPedido.clientName || !novoPedido.product || !novoPedido.unitPrice
-                  ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {savingPed
-                ? <><Loader size={16} className="animate-spin" /> Registrando...</>
-                : <><ShoppingBag size={16} /> Registrar Pedido</>}
-            </button>
+            {(() => {
+              const itensValidos = itensPedido.filter(i => i.produto.trim() && parseFloat(i.unitPrice) > 0)
+              const disabled = savingPed || !novoPedido.clientName || itensValidos.length === 0
+              return (
+                <button
+                  onClick={handleRegistrarPedido}
+                  disabled={disabled}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-[14px]"
+                  style={{
+                    background: disabled ? C.grayMid : C.feldgrau,
+                    color:      disabled ? C.white   : C.peach,
+                    cursor:     disabled ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingPed
+                    ? <><Loader size={16} className="animate-spin" /> Registrando...</>
+                    : <><ShoppingBag size={16} /> Registrar Pedido</>}
+                </button>
+              )
+            })()}
             <p className="text-[10px] text-center mt-2" style={{ color: C.textMuted }}>
               Ao confirmar, o pedido é salvo na nuvem e fica disponível de qualquer dispositivo.
             </p>
@@ -1408,9 +1476,22 @@ export default function App() {
                     <p className="font-bold text-[14px] leading-tight truncate" style={{ color: C.feldgrau }}>
                       {row['Nº Pedido']} · {row['Cliente']}
                     </p>
-                    <p className="text-[12px] mt-0.5 truncate" style={{ color: C.textMuted }}>
-                      {qty}x {row['Produto']}
-                    </p>
+                    {/* Itens: exibe lista se disponível, senão fallback legado */}
+                    {row['Itens'] && row['Itens'].length > 0 ? (
+                      <ul className="mt-0.5 space-y-0.5">
+                        {row['Itens'].map((it, k) => (
+                          <li key={k} className="text-[12px] flex items-center gap-1" style={{ color: C.textMuted }}>
+                            <span className="font-semibold text-[11px] px-1.5 py-0 rounded" style={{ background: C.grayLt, color: C.feldgrau }}>{it.qty}×</span>
+                            {it.produto}
+                            <span className="ml-auto text-[11px]" style={{ color: C.textMid }}>{brl((parseFloat(it.unitPrice)||0)*(parseInt(it.qty)||1))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-[12px] mt-0.5 truncate" style={{ color: C.textMuted }}>
+                        {qty}x {row['Produto']}
+                      </p>
+                    )}
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       <select
                         value={row['Status'] || 'Recebido'}
@@ -1537,10 +1618,21 @@ export default function App() {
                   </div>
                 )}
                 <div style={{ borderTop: '1px dashed #333', margin: '5px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
-                  <span style={{ flex: 1, paddingRight: 4 }}>{printOrder['Quantidade']}x {printOrder['Produto']}</span>
-                  <span>R$ {parseFloat(printOrder['Valor Total'] || 0).toFixed(2).replace('.', ',')}</span>
-                </div>
+                {/* Itens do pedido — usa array se disponível, senão fallback legado */}
+                {printOrder['Itens'] && printOrder['Itens'].length > 0
+                  ? printOrder['Itens'].map((it, k) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                      <span style={{ flex: 1, paddingRight: 4 }}>{it.qty}x {it.produto}</span>
+                      <span>R$ {((parseFloat(it.unitPrice)||0)*(parseInt(it.qty)||1)).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  ))
+                  : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', margin: '2px 0' }}>
+                      <span style={{ flex: 1, paddingRight: 4 }}>{printOrder['Quantidade']}x {printOrder['Produto']}</span>
+                      <span>R$ {parseFloat(printOrder['Valor Total'] || 0).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )
+                }
                 <div style={{ borderTop: '1px dashed #333', margin: '5px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 13, margin: '3px 0' }}>
                   <span>TOTAL</span>

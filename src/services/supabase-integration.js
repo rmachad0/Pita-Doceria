@@ -37,13 +37,27 @@ export async function alertarMargemPerigosa(state) {
 
 export async function registrarPedido(pedido) {
   const numeroPedido = `PED-${Date.now()}`
+
+  // Suporte a múltiplos itens. Se vier o array `itens` usa ele;
+  // caso contrário constrói um array de 1 item (compatibilidade legada).
+  const itens = pedido.itens && pedido.itens.length > 0
+    ? pedido.itens
+    : [{ produto: pedido.product, qty: pedido.qty || 1, unitPrice: parseFloat(pedido.unitPrice) || 0 }]
+
+  const valorTotal = itens.reduce((s, i) => s + (parseFloat(i.unitPrice) || 0) * (parseInt(i.qty) || 1), 0)
+  const qtdTotal   = itens.reduce((s, i) => s + (parseInt(i.qty) || 1), 0)
+  const resumoProd = itens.length === 1
+    ? itens[0].produto
+    : `${itens[0].produto} + ${itens.length - 1} item${itens.length - 1 > 1 ? 'ns' : ''}`
+
   const base = {
     numero_pedido:   numeroPedido,
     nome_cliente:    pedido.clientName,
     telefone:        pedido.phone,
-    produto:         pedido.product,
-    quantidade:      pedido.qty,
-    valor_total:     (parseFloat(pedido.unitPrice) || 0) * (pedido.qty || 1),
+    produto:         resumoProd,
+    quantidade:      qtdTotal,
+    valor_total:     valorTotal,
+    itens:           itens,
     data_entrega:    pedido.deliveryDate || null,
     forma_pagamento: pedido.payment,
     observacoes:     pedido.notes,
@@ -55,6 +69,11 @@ export async function registrarPedido(pedido) {
   if (error && error.code === '42703') {
     const { canal: _drop, ...semCanal } = base
     ;({ error } = await supabase.from('pedidos').insert([semCanal]))
+  }
+  // Coluna itens pode não existir ainda — retenta sem ela
+  if (error && error.code === '42703') {
+    const { itens: _i, ...semItens } = base
+    ;({ error } = await supabase.from('pedidos').insert([semItens]))
   }
   return error ? null : { success: true, numeroPedido }
 }
@@ -267,6 +286,7 @@ export async function carregarPedidos() {
     'Produto':     r.produto,
     'Quantidade':  r.quantidade,
     'Valor Total': r.valor_total,
+    'Itens':       r.itens || null,
     'Entrega':     r.data_entrega ? new Date(r.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR') : '—',
     'Status':      r.status,
     'Pagamento':   r.forma_pagamento || 'Pix',
