@@ -177,6 +177,82 @@ export async function excluirGastoExtra(id) {
   return error ? null : true
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export async function login(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  return error ? { error: error.message } : { user: data.user }
+}
+
+export async function logout() {
+  await supabase.auth.signOut()
+}
+
+export async function getSession() {
+  const { data } = await supabase.auth.getSession()
+  return data.session
+}
+
+export async function getCurrentProfile() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  return data ? { ...data, email: user.email } : { id: user.id, email: user.email, role: 'user' }
+}
+
+export async function getProfiles() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, role, created_at')
+    .order('created_at', { ascending: true })
+  return error ? [] : data
+}
+
+export async function createUser(email, password) {
+  const { error } = await supabase.auth.signUp({ email, password })
+  return error ? { error: error.message } : { success: true }
+}
+
+export async function changePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  return error ? { error: error.message } : { success: true }
+}
+
+export async function sendPasswordRecovery(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}` : undefined,
+  })
+  return error ? { error: error.message } : { success: true }
+}
+
+export function onAuthChange(callback) {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback(session?.user ?? null)
+  })
+  return subscription
+}
+
+// ── Configurações / Logo ──────────────────────────────────────────────────────
+
+export async function loadConfiguracoes() {
+  const { data } = await supabase.from('configuracoes').select('*').eq('id', 1).single()
+  return data || null
+}
+
+export async function saveLogoData(logoData) {
+  const { error } = await supabase
+    .from('configuracoes')
+    .upsert({ id: 1, logo_data: logoData, updated_at: new Date().toISOString() })
+  return error ? { error: error.message } : { success: true }
+}
+
+export async function updateProfileRole(userId, role) {
+  const { error } = await supabase.from('profiles').update({ role }).eq('id', userId)
+  return error ? { error: error.message } : { success: true }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function carregarPedidos() {
   const { data, error } = await supabase
     .from('pedidos')

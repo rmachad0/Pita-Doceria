@@ -5,14 +5,18 @@ import {
   ChevronDown, ChevronUp, Save, Clock, ShoppingBag,
   RefreshCw, Phone, Calendar, MessageSquare, CreditCard,
   CheckCircle, XCircle, Loader, ClipboardList,
-  Printer, X as CloseX, Pencil,
+  Printer, X as CloseX, Pencil, UserCircle, Eye, EyeOff,
 } from 'lucide-react'
 import {
   salvarPrecificacao, alertarMargemPerigosa,
   registrarPedido, carregarHistorico, carregarPedidos,
   excluirPedido, atualizarStatusPedido, atualizarPrecificacao,
+  login, getSession, getCurrentProfile, onAuthChange, loadConfiguracoes,
 } from './services/supabase-integration'
-const Dashboard = lazy(() => import('./components/Dashboard'))
+import { processarDescontoEstoquePedido, criarFicha, atualizarFicha, listarFichas } from './services/estoque-integration'
+const Dashboard  = lazy(() => import('./components/Dashboard'))
+const AdminModal = lazy(() => import('./components/AdminModal'))
+const EstoqueTab = lazy(() => import('./components/EstoqueTab'))
 
 // ── Brand colors ─────────────────────────────────────────────────────────────
 const C = {
@@ -46,6 +50,100 @@ function PitaLogo({ width = 140 }) {
       <text x="178" y="105" fontFamily="Georgia,'Times New Roman',serif" fontSize="62"  fontStyle="italic" fill={C.peach}>a</text>
       <text x="218" y="58"  fontFamily="Georgia,'Times New Roman',serif" fontSize="16"  fill={C.peach} opacity="0.85">®</text>
     </svg>
+  )
+}
+
+// ── Login Screen ──────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [email, setEmail]     = useState('')
+  const [pwd, setPwd]         = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!email || !pwd) return
+    setLoading(true); setError('')
+    const res = await login(email, pwd)
+    if (res.error) { setError(res.error); setLoading(false) }
+    else onLogin(res.user)
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.feldgrauDk }}>
+      <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-5" style={{ background: C.peach }} />
+      <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full opacity-5" style={{ background: C.peach }} />
+
+      <div className="w-full max-w-sm relative">
+        <div className="flex justify-center mb-8">
+          <PitaLogo width={200} />
+        </div>
+
+        <div className="rounded-2xl overflow-hidden shadow-2xl">
+          <div className="px-6 py-4" style={{ background: C.feldgrau }}>
+            <p className="text-[11px] font-bold uppercase tracking-[3px] text-center" style={{ color: C.peach }}>
+              Acesso ao sistema
+            </p>
+          </div>
+          <div className="p-6" style={{ background: C.white }}>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: C.feldgrau }}>
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="w-full px-3 py-2.5 text-[13px] rounded-lg border"
+                  style={{ borderColor: C.grayMid, color: C.textDark }}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: C.feldgrau }}>
+                  Senha
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPwd ? 'text' : 'password'}
+                    value={pwd}
+                    onChange={e => setPwd(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full px-3 py-2.5 text-[13px] rounded-lg border pr-10"
+                    style={{ borderColor: C.grayMid, color: C.textDark }}
+                  />
+                  <button type="button" className="absolute right-3 top-2.5" onClick={() => setShowPwd(v => !v)}>
+                    {showPwd ? <EyeOff size={16} color={C.textMuted} /> : <Eye size={16} color={C.textMuted} />}
+                  </button>
+                </div>
+              </div>
+              {error && (
+                <div className="flex items-center gap-2 text-[12px] px-3 py-2 rounded-lg"
+                  style={{ background: '#fef2f2', color: '#991b1b' }}>
+                  <XCircle size={14} /> {error === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={loading || !email || !pwd}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-[14px] transition-all mt-2"
+                style={{ background: C.feldgrau, color: C.peach, opacity: (loading || !email || !pwd) ? 0.6 : 1 }}
+              >
+                {loading ? <Loader size={16} className="animate-spin" /> : null}
+                {loading ? 'Entrando…' : 'Entrar'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <p className="text-center text-[11px] mt-6" style={{ color: `${C.peach}60` }}>
+          PiTa Doceria · Custos, Precificação e Lucro Real
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -270,6 +368,37 @@ const PEDIDO_VAZIO = { clientName: '', phone: '', product: '', qty: 1, unitPrice
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function App() {
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authUser, setAuthUser]       = useState(null)
+  const [profile, setProfile]         = useState(null)
+  const [showAdmin, setShowAdmin]     = useState(false)
+  const [customLogo, setCustomLogo]   = useState(null)
+
+  useEffect(() => {
+    getSession().then(async session => {
+      if (session?.user) {
+        setAuthUser(session.user)
+        const p = await getCurrentProfile()
+        setProfile(p)
+      }
+      setAuthLoading(false)
+    })
+    const sub = onAuthChange(async user => {
+      setAuthUser(user)
+      if (user) {
+        const p = await getCurrentProfile()
+        setProfile(p)
+      } else {
+        setProfile(null)
+      }
+    })
+    loadConfiguracoes().then(conf => {
+      if (conf?.logo_data) setCustomLogo(conf.logo_data)
+    })
+    return () => sub?.unsubscribe?.()
+  }, [])
+
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('pricing')
 
@@ -294,6 +423,10 @@ export default function App() {
   // ── n8n: salvar precificação ──────────────────────────────────────────────
   const [saving, setSaving]   = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
+
+  // ── Ficha técnica a partir da precificação ────────────────────────────────
+  const [savingFicha, setSavingFicha] = useState(false)
+  const [fichaMsg, setFichaMsg]       = useState(null)
 
   // ── Histórico ─────────────────────────────────────────────────────────────
   const [historico, setHistorico]         = useState([])
@@ -451,6 +584,53 @@ export default function App() {
     setTimeout(() => setSaveMsg(null), 5000)
   }
 
+  // ── Gerar ficha técnica a partir da precificação atual ───────────────────
+  const handleGerarFicha = async () => {
+    if (!prodName || ings.length === 0) return
+    setSavingFicha(true)
+    setFichaMsg(null)
+
+    const fichaPayload = {
+      produto:      prodName,
+      rendimento:   recipeQty || 1,
+      unidade_prod: 'un',
+      ativo:        true,
+    }
+    const ingPayload = ings
+      .filter(i => i.used > 0)
+      .map(i => ({
+        nome_ingrediente: i.name,
+        quantidade:       i.used,
+        unidade:          'g',
+        estoque_id:       null,
+      }))
+
+    const { data: existentes } = await listarFichas()
+    const fichaExistente = existentes?.find(f =>
+      f.produto.toLowerCase() === prodName.toLowerCase()
+    )
+
+    let res
+    if (fichaExistente) {
+      res = await atualizarFicha(fichaExistente.id, fichaPayload, ingPayload)
+    } else {
+      res = await criarFicha(fichaPayload, ingPayload)
+    }
+
+    setSavingFicha(false)
+    if (res.error) {
+      setFichaMsg({ ok: false, text: `Erro: ${res.error}` })
+    } else {
+      setFichaMsg({
+        ok: true,
+        text: fichaExistente
+          ? `Ficha de "${prodName}" atualizada! Vincule os ingredientes ao estoque na aba Estoque.`
+          : `Ficha de "${prodName}" criada! Agora vá em Estoque → Fichas Técnicas para vincular ao estoque.`,
+      })
+    }
+    setTimeout(() => setFichaMsg(null), 7000)
+  }
+
   // ── Excluir pedido ────────────────────────────────────────────────────────
   const handleExcluirPedido = async () => {
     if (!deleteOrder) return
@@ -479,6 +659,11 @@ export default function App() {
       setNovoPedido(PEDIDO_VAZIO)
       setPedLoaded(false)
       loadPedidos()
+      processarDescontoEstoquePedido(
+        novoPedido.product,
+        parseFloat(novoPedido.qty) || 1,
+        result.numeroPedido
+      ).catch(() => {})
     } else {
       setPedMsg({ ok: false, text: 'Erro ao registrar. Verifique a configuração do Supabase.' })
     }
@@ -517,6 +702,23 @@ export default function App() {
   const mSaudeColor = mMargem >= 25 ? C.asparagus : mMargem >= 11 ? '#d4a017' : '#c0392b'
 
   // ══════════════════════════════════════════════════════════════════════════
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: C.feldgrauDk }}>
+        <div className="text-center">
+          <PitaLogo width={180} />
+          <div className="mt-6 flex justify-center">
+            <Loader size={24} className="animate-spin" style={{ color: C.peach }} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authUser) {
+    return <LoginScreen onLogin={user => setAuthUser(user)} />
+  }
+
   return (
     <div className="min-h-screen p-3 sm:p-4 max-w-[1300px] mx-auto">
 
@@ -526,7 +728,10 @@ export default function App() {
         <div className="absolute -bottom-6 left-52 w-20 h-20 rounded-full opacity-10" style={{ background: C.asparagus }} />
         <div className="flex justify-between items-center flex-wrap gap-4 relative">
           <div className="flex items-center gap-5">
-            <PitaLogo width={window.innerWidth < 480 ? 90 : 130} />
+            {customLogo
+              ? <img src={customLogo} alt="Logo" style={{ height: window.innerWidth < 480 ? 36 : 48, objectFit: 'contain' }} />
+              : <PitaLogo width={window.innerWidth < 480 ? 90 : 130} />
+            }
             <div>
               <p className="text-[11px] font-bold tracking-[3px] uppercase mb-1" style={{ color: C.peachLt }}>
                 Software de Precificação
@@ -536,13 +741,46 @@ export default function App() {
               </p>
             </div>
           </div>
-          <div className="rounded-lg px-6 py-4 text-center border w-full sm:w-auto" style={{ background: 'rgba(250,189,151,0.1)', borderColor: 'rgba(250,189,151,0.2)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-[1.5px]" style={{ color: C.peachLt }}>Custo / Hora de Estrutura</p>
-            <p className="text-4xl font-bold font-serif mt-1" style={{ color: C.peach }}>{brl(cph)}</p>
-            <p className="text-[11px] mt-1" style={{ color: 'rgba(250,189,151,0.5)' }}>Total fixo: {brl(totalFixed)}/mês</p>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg px-6 py-4 text-center border w-full sm:w-auto hidden sm:block" style={{ background: 'rgba(250,189,151,0.1)', borderColor: 'rgba(250,189,151,0.2)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px]" style={{ color: C.peachLt }}>Custo / Hora de Estrutura</p>
+              <p className="text-4xl font-bold font-serif mt-1" style={{ color: C.peach }}>{brl(cph)}</p>
+              <p className="text-[11px] mt-1" style={{ color: 'rgba(250,189,151,0.5)' }}>Total fixo: {brl(totalFixed)}/mês</p>
+            </div>
+            {/* Admin icon */}
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:opacity-80 relative"
+              style={{ background: 'rgba(250,189,151,0.15)', border: '1px solid rgba(250,189,151,0.25)' }}
+              title="Configurações"
+            >
+              <UserCircle size={22} color={C.peach} />
+              {profile?.role === 'admin' && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold"
+                  style={{ background: C.peach, color: C.feldgrauDk }}>A</span>
+              )}
+            </button>
           </div>
         </div>
+        {/* CPH em mobile */}
+        <div className="mt-3 rounded-lg px-4 py-2.5 text-center border sm:hidden" style={{ background: 'rgba(250,189,151,0.1)', borderColor: 'rgba(250,189,151,0.2)' }}>
+          <p className="text-[10px] font-bold uppercase tracking-[1.5px]" style={{ color: C.peachLt }}>Custo / Hora de Estrutura</p>
+          <p className="text-3xl font-bold font-serif mt-0.5" style={{ color: C.peach }}>{brl(cph)}</p>
+          <p className="text-[11px] mt-0.5" style={{ color: 'rgba(250,189,151,0.5)' }}>Total fixo: {brl(totalFixed)}/mês</p>
+        </div>
       </div>
+
+      {/* ── ADMIN MODAL ────────────────────────────────────────────────────────── */}
+      {showAdmin && (
+        <Suspense fallback={null}>
+          <AdminModal
+            profile={profile}
+            currentLogo={customLogo}
+            onClose={() => setShowAdmin(false)}
+            onLogoChange={url => setCustomLogo(url)}
+          />
+        </Suspense>
+      )}
 
       {/* ── TABS ───────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl border" style={{ background: C.grayLt, borderColor: C.grayMid }}>
@@ -550,6 +788,7 @@ export default function App() {
           { k: 'pricing',   l: 'Precificação', icon: DollarSign },
           { k: 'history',   l: 'Histórico',    icon: Clock      },
           { k: 'orders',    l: 'Pedidos',      icon: ShoppingBag },
+          { k: 'estoque',   l: 'Estoque',      icon: Package    },
           { k: 'dashboard', l: 'Painel Financeiro', icon: BarChart3  },
         ].map(({ k, l, icon: Icon }) => (
           <button
@@ -843,6 +1082,23 @@ export default function App() {
                       ? <><Loader size={16} className="animate-spin" /> Salvando no Google Sheets...</>
                       : <><Save size={16} /> Salvar Precificação</>}
                   </button>
+                  {/* Gerar Ficha Técnica */}
+                  <button
+                    onClick={handleGerarFicha}
+                    disabled={savingFicha || !prodName || ings.length === 0}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] transition-all mt-2 border"
+                    style={{
+                      background: 'transparent',
+                      borderColor: savingFicha || !prodName || ings.length === 0 ? 'rgba(250,189,151,0.2)' : 'rgba(250,189,151,0.5)',
+                      color: savingFicha || !prodName || ings.length === 0 ? 'rgba(250,189,151,0.3)' : C.peachLt,
+                      cursor: savingFicha || !prodName || ings.length === 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {savingFicha
+                      ? <><Loader size={14} className="animate-spin" /> Gerando Ficha...</>
+                      : <><ClipboardList size={14} /> Gerar Ficha Técnica</>}
+                  </button>
+                  {fichaMsg && <Toast msg={fichaMsg} />}
                 </div>
               </div>
 
@@ -1210,6 +1466,20 @@ export default function App() {
             })}
           </Card>
         </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: ESTOQUE
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'estoque' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-24 gap-3" style={{ color: C.textMuted }}>
+            <Loader size={22} className="animate-spin" style={{ color: C.feldgrau }} />
+            <span className="text-[13px]">Carregando estoque…</span>
+          </div>
+        }>
+          <EstoqueTab />
+        </Suspense>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
