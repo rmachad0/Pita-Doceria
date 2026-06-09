@@ -426,8 +426,10 @@ export default function App() {
   const [saveMsg, setSaveMsg] = useState(null)
 
   // ── Ficha técnica a partir da precificação ────────────────────────────────
-  const [savingFicha, setSavingFicha] = useState(false)
-  const [fichaMsg, setFichaMsg]       = useState(null)
+  const [savingFicha, setSavingFicha]       = useState(false)
+  const [fichaMsg, setFichaMsg]             = useState(null)
+  const [savingFichaHist, setSavingFichaHist] = useState(false)
+  const [fichaHistMsg, setFichaHistMsg]     = useState(null)
 
   // ── Histórico ─────────────────────────────────────────────────────────────
   const [historico, setHistorico]         = useState([])
@@ -631,6 +633,53 @@ export default function App() {
       })
     }
     setTimeout(() => setFichaMsg(null), 7000)
+  }
+
+  // ── Gerar ficha técnica a partir do histórico (modal de edição) ─────────
+  const handleGerarFichaFromHist = async () => {
+    if (!editHistProd || editHistIngs.length === 0) return
+    setSavingFichaHist(true)
+    setFichaHistMsg(null)
+
+    const fichaPayload = {
+      produto:      editHistProd,
+      rendimento:   editHistQty || 1,
+      unidade_prod: 'un',
+      ativo:        true,
+    }
+    const ingPayload = editHistIngs
+      .filter(i => i.used > 0)
+      .map(i => ({
+        nome_ingrediente: i.name,
+        quantidade:       i.used,
+        unidade:          i.unit || 'g',
+        estoque_id:       null,
+      }))
+
+    const { data: existentes } = await listarFichas()
+    const fichaExistente = existentes?.find(f =>
+      f.produto.toLowerCase() === editHistProd.toLowerCase()
+    )
+
+    let res
+    if (fichaExistente) {
+      res = await atualizarFicha(fichaExistente.id, fichaPayload, ingPayload)
+    } else {
+      res = await criarFicha(fichaPayload, ingPayload)
+    }
+
+    setSavingFichaHist(false)
+    if (res?.error) {
+      setFichaHistMsg({ ok: false, text: `Erro: ${res.error}` })
+    } else {
+      setFichaHistMsg({
+        ok: true,
+        text: fichaExistente
+          ? `Ficha de "${editHistProd}" atualizada!`
+          : `Ficha de "${editHistProd}" criada! Vá em Estoque → Fichas Técnicas para vincular ao estoque.`,
+      })
+    }
+    setTimeout(() => setFichaHistMsg(null), 7000)
   }
 
   // ── Excluir pedido ────────────────────────────────────────────────────────
@@ -1932,19 +1981,44 @@ export default function App() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t flex gap-3 flex-shrink-0" style={{ borderColor: C.grayLt }}>
-              <button onClick={() => setEditHistModal(null)} disabled={savingHist}
-                className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border"
-                style={{ borderColor: C.grayMid, color: C.textMuted }}>
-                Cancelar
-              </button>
-              <button onClick={handleSalvarEditHist} disabled={savingHist}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold"
-                style={{ flex:2, background: savingHist ? C.grayMid : C.feldgrau, color: C.peach, cursor: savingHist ? 'not-allowed' : 'pointer' }}>
-                {savingHist
-                  ? <><Loader size={14} className="animate-spin" /> Salvando...</>
-                  : <><Save size={14} /> Salvar Alterações</>}
-              </button>
+            <div className="px-5 py-4 border-t flex-shrink-0" style={{ borderColor: C.grayLt }}>
+              {/* Toast ficha */}
+              {fichaHistMsg && (
+                <div className="mb-3 px-3 py-2 rounded-lg text-[12px] font-semibold flex items-center gap-2"
+                  style={{ background: fichaHistMsg.ok ? '#f2faf4' : '#fdf2f2', color: fichaHistMsg.ok ? '#1a4a22' : '#7a1f1f', border: `1px solid ${fichaHistMsg.ok ? '#b7dfc0' : '#f5b7b7'}` }}>
+                  {fichaHistMsg.ok ? '✓' : '✗'} {fichaHistMsg.text}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={() => { setEditHistModal(null); setFichaHistMsg(null) }} disabled={savingHist}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border"
+                  style={{ borderColor: C.grayMid, color: C.textMuted }}>
+                  Cancelar
+                </button>
+                {/* Gerar ficha técnica a partir dos dados do histórico */}
+                <button
+                  onClick={handleGerarFichaFromHist}
+                  disabled={savingFichaHist || !editHistProd || editHistIngs.length === 0}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold border"
+                  style={{
+                    flex: 1.5,
+                    borderColor: savingFichaHist || editHistIngs.length === 0 ? C.grayMid : C.feldgrau,
+                    background: C.white,
+                    color: savingFichaHist || editHistIngs.length === 0 ? C.textMuted : C.feldgrau,
+                    cursor: savingFichaHist || editHistIngs.length === 0 ? 'not-allowed' : 'pointer',
+                  }}>
+                  {savingFichaHist
+                    ? <><Loader size={13} className="animate-spin" /> Gerando...</>
+                    : <><ClipboardList size={13} /> Ficha Técnica</>}
+                </button>
+                <button onClick={handleSalvarEditHist} disabled={savingHist}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold"
+                  style={{ flex: 2, background: savingHist ? C.grayMid : C.feldgrau, color: C.peach, cursor: savingHist ? 'not-allowed' : 'pointer' }}>
+                  {savingHist
+                    ? <><Loader size={14} className="animate-spin" /> Salvando...</>
+                    : <><Save size={14} /> Salvar Alterações</>}
+                </button>
+              </div>
             </div>
           </div>
         </div>
