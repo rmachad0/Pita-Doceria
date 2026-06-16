@@ -170,7 +170,7 @@ function ProductDetailDrawer({ item, qty, onAdd, onRemove, onClose }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '18px 18px 14px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
           {/* Foto pequena */}
           <div style={{
-            width: 90, height: 90, borderRadius: 12, overflow: 'hidden',
+            width: 180, height: 180, borderRadius: 12, overflow: 'hidden',
             background: '#f3ede7', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
