@@ -294,3 +294,36 @@ export async function carregarPedidos() {
     'Canal':       r.canal || 'direto',
   }))
 }
+
+// ── Produtos (Cardápio) ────────────────────────────────────────────────────────
+
+export async function listarProdutos({ apenasAtivos = false } = {}) {
+  let q = supabase.from('produtos').select('*').order('categoria').order('ordem').order('nome')
+  if (apenasAtivos) q = q.eq('ativo', true)
+  const { data, error } = await q
+  return error ? [] : data
+}
+
+export async function salvarProduto({ id, nome, descricao, preco, categoria, foto_url, ativo, ordem }) {
+  const payload = { nome, descricao, preco: parseFloat(preco) || 0, categoria, foto_url, ativo: ativo ?? true, ordem: parseInt(ordem) || 0, updated_at: new Date().toISOString() }
+  if (id) {
+    const { error } = await supabase.from('produtos').update(payload).eq('id', id)
+    return error ? { error: error.message } : { success: true }
+  }
+  const { error } = await supabase.from('produtos').insert([payload])
+  return error ? { error: error.message } : { success: true }
+}
+
+export async function excluirProduto(id) {
+  const { error } = await supabase.from('produtos').delete().eq('id', id)
+  return error ? { error: error.message } : { success: true }
+}
+
+export async function uploadFotoProduto(file) {
+  const ext  = file.name.split('.').pop()
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const { error } = await supabase.storage.from('produtos').upload(path, file, { upsert: true })
+  if (error) return { error: error.message }
+  const { data } = supabase.storage.from('produtos').getPublicUrl(path)
+  return { url: data.publicUrl }
+}

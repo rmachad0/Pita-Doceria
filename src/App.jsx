@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import {
-  Settings, ChefHat, Package, Store, Tag,
+  Settings, ChefHat, Package, Store, Tag, UtensilsCrossed,
   TrendingUp, Plus, Trash2, DollarSign, BarChart3,
   ChevronDown, ChevronUp, Save, Clock, ShoppingBag,
   RefreshCw, Phone, Calendar, MessageSquare, CreditCard,
@@ -17,6 +17,7 @@ import { processarDescontoEstoquePedido, criarFicha, atualizarFicha, listarFicha
 const Dashboard  = lazy(() => import('./components/Dashboard'))
 const AdminModal = lazy(() => import('./components/AdminModal'))
 const EstoqueTab = lazy(() => import('./components/EstoqueTab'))
+const MenuTab    = lazy(() => import('./components/MenuTab'))
 
 // ── Brand colors ─────────────────────────────────────────────────────────────
 const C = {
@@ -846,11 +847,12 @@ export default function App() {
       {/* ── TABS ───────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl border" style={{ background: C.grayLt, borderColor: C.grayMid }}>
         {[
-          { k: 'pricing',   l: 'Precificação', icon: DollarSign },
-          { k: 'history',   l: 'Histórico',    icon: Clock      },
-          { k: 'orders',    l: 'Pedidos',      icon: ShoppingBag },
-          { k: 'estoque',   l: 'Estoque',      icon: Package    },
-          { k: 'dashboard', l: 'Painel Financeiro', icon: BarChart3  },
+          { k: 'pricing',   l: 'Precificação',  icon: DollarSign       },
+          { k: 'history',   l: 'Histórico',     icon: Clock            },
+          { k: 'orders',    l: 'Pedidos',       icon: ShoppingBag      },
+          { k: 'estoque',   l: 'Estoque',       icon: Package          },
+          { k: 'menu',      l: 'Editar Menu',   icon: UtensilsCrossed  },
+          { k: 'dashboard', l: 'Painel Financeiro', icon: BarChart3    },
         ].map(({ k, l, icon: Icon }) => (
           <button
             key={k}
@@ -1609,6 +1611,20 @@ export default function App() {
           </div>
         }>
           <EstoqueTab />
+        </Suspense>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: EDITAR MENU
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'menu' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-24 gap-3" style={{ color: C.textMuted }}>
+            <Loader size={22} className="animate-spin" style={{ color: C.feldgrau }} />
+            <span className="text-[13px]">Carregando cardápio…</span>
+          </div>
+        }>
+          <MenuTab />
         </Suspense>
       )}
 

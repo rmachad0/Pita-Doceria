@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { registrarPedido } from '../services/supabase-integration'
+import { useState, useMemo, useEffect } from 'react'
+import { registrarPedido, listarProdutos } from '../services/supabase-integration'
 
 // ── Configuração da loja ────────────────────────────────────────────────────
 // ALTERE AQUI o número do WhatsApp da loja (somente dígitos, com DDI 55)
@@ -16,118 +16,7 @@ const CORES = {
 // ── Cardápio ────────────────────────────────────────────────────────────────
 // foto: coloque a URL da imagem quando tiver. Ex: 'https://...'
 // descricao: edite livremente
-const CDN = 'https://client-assets.anota.ai/produtos/654809e6c88d180012064a77'
-
-const CARDAPIO = [
-  {
-    categoria: 'Tortas',
-    emoji: '🎂',
-    itens: [
-      {
-        id: 1,
-        nome: 'Bolo Fatia Cenoura e Brownie',
-        descricao: 'Massa de cenoura com recheio de brigadeiro gourmet e Brownie',
-        preco: 22.96,
-        foto: `${CDN}/-1781180508767blob_600.webp`,
-      },
-      {
-        id: 2,
-        nome: 'Bolo Fatia Tapioca',
-        descricao: 'Bolo de Tapioca recheado com Doce de Leite e Cocada Cremosa',
-        preco: 22.50,
-        foto: `${CDN}/-1781180678693blob_600.webp`,
-      },
-      {
-        id: 3,
-        nome: 'Browninho',
-        descricao: 'Brownie com palha de leite ninho',
-        preco: 15.00,
-        foto: `${CDN}/-1781181649099blob_600.webp`,
-      },
-    ],
-  },
-  {
-    categoria: 'Doces',
-    emoji: '🍪',
-    itens: [
-      {
-        id: 4,
-        nome: 'Cookies Pita',
-        descricao: 'Massa Baunilha com Cranberry, Amêndoas Laminadas, Gotas de Chocolate meio amargo e recheado com Chocolate meio amargo',
-        preco: 18.00,
-        foto: `${CDN}/-1781622537717blob_600.webp`,
-      },
-    ],
-  },
-  {
-    categoria: 'Lanche',
-    emoji: '🥐',
-    itens: [
-      {
-        id: 5,
-        nome: 'Mini Salgado Sortindo 50 unidades',
-        descricao: 'Enroladinho de salsinha, bolinha de queijo, quibe, coxinha de frango, coxinha de carne e trouxinha de presunto queijo',
-        preco: 55.00,
-        foto: `${CDN}/-1781556960760blob_600.webp`,
-      },
-      {
-        id: 6,
-        nome: 'Mini Salgado Sortindo 100 unidades',
-        descricao: 'Enroladinho de salsinha, bolinha de queijo, quibe, coxinha de frango, coxinha de carne e trouxinha de presunto queijo',
-        preco: 105.00,
-        foto: `${CDN}/-1781556960760blob_600.webp`,
-      },
-    ],
-  },
-  {
-    categoria: 'Bebidas',
-    emoji: '🥤',
-    itens: [
-      {
-        id: 7,
-        nome: 'Coca Cola 310ml',
-        descricao: '',
-        preco: 6.00,
-        foto: `${CDN}/-1781558664736blob_600.webp`,
-      },
-      {
-        id: 8,
-        nome: 'Coca Cola Zero 310ml',
-        descricao: '',
-        preco: 6.00,
-        foto: `${CDN}/-1781558634667blob_600.webp`,
-      },
-      {
-        id: 9,
-        nome: 'Sprite 310ml',
-        descricao: '',
-        preco: 6.00,
-        foto: `${CDN}/-1781558600889blob_600.webp`,
-      },
-      {
-        id: 10,
-        nome: 'Fanta Uva 310ml',
-        descricao: '',
-        preco: 6.00,
-        foto: `${CDN}/-1781558563871blob_600.webp`,
-      },
-      {
-        id: 11,
-        nome: 'Guaraná Antártica',
-        descricao: '',
-        preco: 5.00,
-        foto: `${CDN}/-1781558740100blob_600.webp`,
-      },
-      {
-        id: 12,
-        nome: 'Água Mineral Puríssima 497ml',
-        descricao: '',
-        preco: 4.00,
-        foto: `${CDN}/-1781558801716blob_600.webp`,
-      },
-    ],
-  },
-]
+const EMOJI_CAT = { Tortas: '🎂', Doces: '🍪', Lanche: '🥐', Bebidas: '🥤', Outros: '🍽️' }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -688,15 +577,22 @@ function SuccessScreen({ numeroPedido, nome, itens, total, onNew }) {
 
 // ── Página principal ─────────────────────────────────────────────────────────
 export default function MenuPage() {
-  const [cart, setCart]           = useState({})
-  const [cartOpen, setCartOpen]       = useState(false)
-  const [checkout, setCheckout]       = useState(false)
-  const [success, setSuccess]         = useState(null)
-  const [activecat, setActivecat]     = useState(null)
-  const [detailItem, setDetailItem]   = useState(null)
+  const [cart, setCart]             = useState({})
+  const [cartOpen, setCartOpen]     = useState(false)
+  const [checkout, setCheckout]     = useState(false)
+  const [success, setSuccess]       = useState(null)
+  const [activecat, setActivecat]   = useState(null)
+  const [detailItem, setDetailItem] = useState(null)
+  const [allProducts, setAllProducts] = useState([])
+  const [loadingMenu, setLoadingMenu] = useState(true)
 
-  const allProducts = useMemo(() =>
-    CARDAPIO.flatMap(c => c.itens), [])
+  useEffect(() => {
+    listarProdutos({ apenasAtivos: true }).then(data => {
+      // Normaliza foto_url → foto para compatibilidade dos componentes
+      setAllProducts(data.map(p => ({ ...p, foto: p.foto_url || '' })))
+      setLoadingMenu(false)
+    })
+  }, [])
 
   const totalQty = useMemo(() =>
     Object.values(cart).reduce((a, b) => a + b, 0), [cart])
@@ -760,9 +656,28 @@ export default function MenuPage() {
     )
   }
 
+  // Agrupar produtos por categoria dinamicamente
+  const categorias = useMemo(() => {
+    const ordem = ['Tortas', 'Doces', 'Lanche', 'Bebidas', 'Outros']
+    const grupos = {}
+    allProducts.forEach(p => {
+      const cat = p.categoria || 'Outros'
+      if (!grupos[cat]) grupos[cat] = []
+      grupos[cat].push(p)
+    })
+    return ordem
+      .filter(c => grupos[c])
+      .map(c => ({ categoria: c, emoji: EMOJI_CAT[c] || '🍽️', itens: grupos[c] }))
+      .concat(
+        Object.keys(grupos)
+          .filter(c => !ordem.includes(c))
+          .map(c => ({ categoria: c, emoji: '🍽️', itens: grupos[c] }))
+      )
+  }, [allProducts])
+
   const categoriasVisiveis = activecat
-    ? CARDAPIO.filter(c => c.categoria === activecat)
-    : CARDAPIO
+    ? categorias.filter(c => c.categoria === activecat)
+    : categorias
 
   return (
     <div style={{ minHeight: '100vh', background: CORES.offwhite, fontFamily: 'system-ui, sans-serif' }}>
@@ -833,7 +748,7 @@ export default function MenuPage() {
           }}>
             Todos
           </button>
-          {CARDAPIO.map(c => (
+          {categorias.map(c => (
             <button key={c.categoria} onClick={() => setActivecat(c.categoria)} style={{
               padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
               fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap',
@@ -849,6 +764,12 @@ export default function MenuPage() {
 
       {/* Cardápio */}
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '16px 16px 120px' }}>
+        {loadingMenu && (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🍰</div>
+            <div style={{ fontSize: 14 }}>Carregando cardápio...</div>
+          </div>
+        )}
         {categoriasVisiveis.map(cat => (
           <div key={cat.categoria} style={{ marginBottom: 28 }}>
             <div style={{
