@@ -633,12 +633,10 @@ export default function MenuPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img
-                  src="https://client-assets.anota.ai/empresas/654809e6c88d180012064a77/logo.webp"
+                  src="/logo.svg"
                   alt="PiTa Doceria"
-                  onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
-                  style={{ width: 42, height: 42, borderRadius: 10, objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }}
+                  style={{ width: 46, height: 46, borderRadius: 10, objectFit: 'cover' }}
                 />
-                <span style={{ display: 'none', width: 42, height: 42, borderRadius: 10, background: CORES.peach, alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🍰</span>
                 <span style={{ fontWeight: 900, fontSize: 20, color: CORES.peach, letterSpacing: 0.5 }}>
                   PiTa Doceria
                 </span>
