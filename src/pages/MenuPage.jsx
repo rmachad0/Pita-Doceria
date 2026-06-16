@@ -259,8 +259,17 @@ function CartDrawer({ cart, products, onAdd, onRemove, onClose, onCheckout }) {
         flexDirection: 'column',
         boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
       }}>
-        <div style={{ fontWeight: 800, fontSize: 18, color: CORES.feldgrau, marginBottom: 16 }}>
-          🛒 Seu Carrinho
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: CORES.feldgrau }}>
+            🛒 Seu Carrinho
+          </div>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: `1.5px solid ${CORES.feldgrau}`, borderRadius: 10,
+            padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: CORES.feldgrau,
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            ← Continuar comprando
+          </button>
         </div>
 
         <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -306,8 +315,16 @@ function CartDrawer({ cart, products, onAdd, onRemove, onClose, onCheckout }) {
             width: '100%', background: CORES.feldgrau, color: CORES.peach,
             border: 'none', borderRadius: 14, padding: '14px 0',
             fontWeight: 800, fontSize: 16, cursor: 'pointer', letterSpacing: 0.3,
+            marginBottom: 10,
           }}>
             Finalizar Pedido →
+          </button>
+          <button onClick={onClose} style={{
+            width: '100%', background: 'transparent', color: CORES.feldgrau,
+            border: `1.5px solid ${CORES.feldgrau}`, borderRadius: 14, padding: '12px 0',
+            fontWeight: 700, fontSize: 14, cursor: 'pointer',
+          }}>
+            ← Continuar comprando
           </button>
         </div>
       </div>
