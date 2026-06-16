@@ -167,10 +167,10 @@ function ProductDetailDrawer({ item, qty, onAdd, onRemove, onClose }) {
         boxShadow: '0 -4px 24px rgba(0,0,0,0.18)',
       }}>
         {/* Foto grande */}
-        <div style={{ position: 'relative', height: 240, background: '#f3ede7', flexShrink: 0 }}>
+        <div style={{ position: 'relative', height: 180, background: '#f3ede7', flexShrink: 0 }}>
           {item.foto ? (
             <img src={item.foto} alt={item.nome}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 72 }}>🍰</span>
