@@ -655,7 +655,7 @@ export default function MenuPage() {
                   style={{ width: 46, height: 46, borderRadius: 10, objectFit: 'cover' }}
                 />
                 <span style={{ fontWeight: 900, fontSize: 20, color: CORES.peach, letterSpacing: 0.5 }}>
-                  PiTa Doceria
+                  Doceria
                 </span>
               </div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>
