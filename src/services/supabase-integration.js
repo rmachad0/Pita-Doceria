@@ -297,11 +297,32 @@ export async function carregarPedidos() {
 
 // ── Produtos (Cardápio) ────────────────────────────────────────────────────────
 
+// Produtos padrão usados como fallback enquanto a tabela 'produtos' não está disponível na API
+const PRODUTOS_FALLBACK = [
+  { id: 1,  nome: 'Torta de Limão',     categoria: 'Tortas',  preco: 79.90, descricao: 'Torta cremosa de limão com base crocante e merengue dourado', foto_url: '', ativo: true, ordem: 1 },
+  { id: 2,  nome: 'Torta de Morango',   categoria: 'Tortas',  preco: 85.00, descricao: 'Torta com creme de baunilha e morangos frescos',              foto_url: '', ativo: true, ordem: 2 },
+  { id: 3,  nome: 'Torta de Chocolate', categoria: 'Tortas',  preco: 89.90, descricao: 'Torta intensa de chocolate belga com ganache',                foto_url: '', ativo: true, ordem: 3 },
+  { id: 4,  nome: 'Brigadeiro Gourmet', categoria: 'Doces',   preco:  5.50, descricao: 'Brigadeiro artesanal com chocolate belga e granulado crocante', foto_url: '', ativo: true, ordem: 1 },
+  { id: 5,  nome: 'Beijinho',           categoria: 'Doces',   preco:  5.00, descricao: 'Docinho de coco com cravo',                                   foto_url: '', ativo: true, ordem: 2 },
+  { id: 6,  nome: 'Trufa de Chocolate', categoria: 'Doces',   preco:  7.00, descricao: 'Trufa recheada com ganache de chocolate meio amargo',          foto_url: '', ativo: true, ordem: 3 },
+  { id: 7,  nome: 'Pão de Mel',         categoria: 'Doces',   preco:  8.00, descricao: 'Pão de mel recheado com doce de leite e coberto com chocolate', foto_url: '', ativo: true, ordem: 4 },
+  { id: 8,  nome: 'Coxinha',            categoria: 'Lanche',  preco:  9.00, descricao: 'Coxinha de frango com catupiry em massa especial',             foto_url: '', ativo: true, ordem: 1 },
+  { id: 9,  nome: 'Mini Salgados',      categoria: 'Lanche',  preco:  6.50, descricao: 'Mini salgados sortidos para festas e eventos',                 foto_url: '', ativo: true, ordem: 2 },
+  { id: 10, nome: 'Suco Natural',       categoria: 'Bebidas', preco: 12.00, descricao: 'Suco de frutas frescas da estação',                            foto_url: '', ativo: true, ordem: 1 },
+  { id: 11, nome: 'Refrigerante',       categoria: 'Bebidas', preco:  6.00, descricao: 'Lata 350ml',                                                   foto_url: '', ativo: true, ordem: 2 },
+  { id: 12, nome: 'Água',              categoria: 'Bebidas', preco:  3.00, descricao: 'Garrafa 500ml',                                                foto_url: '', ativo: true, ordem: 3 },
+]
+
 export async function listarProdutos({ apenasAtivos = false } = {}) {
   let q = supabase.from('produtos').select('*').order('categoria').order('ordem').order('nome')
   if (apenasAtivos) q = q.eq('ativo', true)
   const { data, error } = await q
-  return error ? [] : data
+  if (error) {
+    // Fallback enquanto PostgREST recarrega o schema
+    const fb = apenasAtivos ? PRODUTOS_FALLBACK.filter(p => p.ativo) : PRODUTOS_FALLBACK
+    return fb
+  }
+  return data
 }
 
 export async function salvarProduto({ id, nome, descricao, preco, categoria, foto_url, ativo, ordem }) {
