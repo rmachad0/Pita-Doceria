@@ -346,8 +346,8 @@ function CheckoutModal({ cart, products, onBack, onSuccess }) {
       phone:        telefone.replace(/\D/g, ''),
       deliveryDate: entrega || null,
       payment:      pagamento,
-      notes:        obs.trim(),
-      canal:        'menu-online',
+      notes:        obs.trim() ? `[Menu Online] ${obs.trim()}` : '[Menu Online]',
+      canal:        'direto',
     })
     setLoading(false)
     if (result?.success) {
