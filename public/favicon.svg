@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#525F54"/>
+  <text
+    x="200"
+    y="255"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="155"
+    font-style="italic"
+    font-weight="bold"
+    fill="#FABD97"
+    letter-spacing="-4"
+  >PiTa</text>
+  <text
+    x="315"
+    y="185"
+    font-family="Georgia, serif"
+    font-size="38"
+    fill="#FABD97"
+    font-style="normal"
+    font-weight="normal"
+  >®</text>
+</svg>
