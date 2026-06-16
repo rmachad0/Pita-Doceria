@@ -3,7 +3,7 @@ import { registrarPedido } from '../services/supabase-integration'
 
 // ── Configuração da loja ────────────────────────────────────────────────────
 // ALTERE AQUI o número do WhatsApp da loja (somente dígitos, com DDI 55)
-const WHATSAPP = '5551996022218'
+const WHATSAPP = '5566996799565'
 
 const CORES = {
   feldgrau:  '#525F54',
