@@ -15,7 +15,11 @@ const CORES = {
 
 const EMOJI_CAT = { Tortas: '🎂', Doces: '🍪', Lanche: '🥐', Bebidas: '🥤', Outros: '🍽️' }
 
-const fmt = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const fmt = (v) => {
+  const n = Number(v)
+  if (v == null || isNaN(n)) return 'R$ 0,00'
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
 const maskPhone = (v) => {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -196,13 +200,17 @@ function ProductCard({ item, qty, onAdd, onRemove, onOpenDetail }) {
 function CartDrawer({ cart, products, onAdd, onRemove, onClose, onCheckout }) {
   const total = useMemo(() =>
     Object.entries(cart).reduce((s, [id, qty]) => {
-      const p = products.find(x => x.id === Number(id))
+      const p = products.find(x => String(x.id) === String(id))
       return s + (p ? p.preco * qty : 0)
     }, 0), [cart, products])
 
-  const items = Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({
-    ...products.find(x => x.id === Number(id)), qty,
-  }))
+  const items = Object.entries(cart)
+    .filter(([, q]) => q > 0)
+    .map(([id, qty]) => {
+      const p = products.find(x => String(x.id) === String(id))
+      return p ? { ...p, qty } : null
+    })
+    .filter(Boolean)
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
@@ -294,17 +302,20 @@ function CheckoutFlow({ cart, products, onBack, onSuccess }) {
 
   const subtotal = useMemo(() =>
     Object.entries(cart).reduce((s, [id, qty]) => {
-      const p = products.find(x => x.id === Number(id))
+      const p = products.find(x => String(x.id) === String(id))
       return s + (p ? p.preco * qty : 0)
     }, 0), [cart, products])
 
   const taxaEntrega = modoEntrega === 'delivery' ? TAXA_ENTREGA : 0
   const total = subtotal + taxaEntrega
 
-  const itens = Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => {
-    const p = products.find(x => x.id === Number(id))
-    return { produto: p.nome, qty, unitPrice: p.preco }
-  })
+  const itens = Object.entries(cart)
+    .filter(([, q]) => q > 0)
+    .map(([id, qty]) => {
+      const p = products.find(x => String(x.id) === String(id))
+      return p ? { produto: p.nome, qty, unitPrice: p.preco } : null
+    })
+    .filter(Boolean)
 
   // ── Etapa 1: Escolha do modo de entrega ────────────────────────────────────
   function StepDelivery() {
