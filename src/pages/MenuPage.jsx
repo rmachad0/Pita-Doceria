@@ -631,8 +631,14 @@ export default function MenuPage() {
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 22 }}>🍰</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <img
+                  src="https://client-assets.anota.ai/empresas/654809e6c88d180012064a77/logo.webp"
+                  alt="PiTa Doceria"
+                  onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
+                  style={{ width: 42, height: 42, borderRadius: 10, objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }}
+                />
+                <span style={{ display: 'none', width: 42, height: 42, borderRadius: 10, background: CORES.peach, alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🍰</span>
                 <span style={{ fontWeight: 900, fontSize: 20, color: CORES.peach, letterSpacing: 0.5 }}>
                   PiTa Doceria
                 </span>
@@ -725,6 +731,28 @@ export default function MenuPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Aviso de entrega */}
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px 32px' }}>
+        <div style={{
+          background: CORES.feldgrau,
+          borderRadius: 12,
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <span style={{ fontSize: 20 }}>📍</span>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: CORES.peach, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Área de entrega
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 2 }}>
+              Entregas realizadas <strong style={{ color: CORES.peach }}>APENAS para a cidade de Sinop – MT</strong>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Barra de carrinho */}
