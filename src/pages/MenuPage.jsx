@@ -276,27 +276,468 @@ function CartDrawer({ cart, products, onAdd, onRemove, onClose, onCheckout }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  FLUXO DE CHECKOUT MULTI-STEP
-//  step: 'delivery' → 'address' → 'address-confirm' → 'payment' → success
+//  FLUXO DE CHECKOUT — STEP COMPONENTS (top-level, never nested)
+// ════════════════════════════════════════════════════════════════════════════
+
+function StepDelivery({ itens, subtotal, onBack, onSelect }) {
+  const opcoes = [
+    {
+      key: 'delivery',
+      icon: '🏠',
+      titulo: 'Receber em casa',
+      sub: `Taxa de entrega · ${fmt(TAXA_ENTREGA)}`,
+      badge: null,
+    },
+    {
+      key: 'pickup',
+      icon: '🛍️',
+      titulo: 'Retirar no local',
+      sub: 'Grátis',
+      badge: null,
+    },
+    {
+      key: 'local',
+      icon: '🍽️',
+      titulo: 'Consumir no local',
+      sub: null,
+      badge: null,
+    },
+  ]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: CORES.offwhite, overflowY: 'auto' }}>
+      {/* Header */}
+      <div style={{ background: CORES.feldgrau, padding: '0 0 1px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px' }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.peach }}>←</button>
+          <div style={{ fontWeight: 800, fontSize: 18, color: CORES.peach }}>Finalizar pedido</div>
+        </div>
+      </div>
+
+      <div style={{ padding: '24px 20px' }}>
+        {/* Resumo rápido */}
+        <div style={{
+          background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 24,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+        }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Resumo
+          </div>
+          {itens.map((it, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4, color: CORES.feldgrau }}>
+              <span>{it.qty}× {it.produto}</span>
+              <span style={{ fontWeight: 600 }}>{fmt(it.unitPrice * it.qty)}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: '1px dashed #e5e7eb', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 700, color: CORES.feldgrau }}>Subtotal</span>
+            <span style={{ fontWeight: 800, color: CORES.asparagus }}>{fmt(subtotal)}</span>
+          </div>
+        </div>
+
+        {/* Escolha de entrega */}
+        <div style={{ fontWeight: 800, fontSize: 16, color: CORES.feldgrau, marginBottom: 14 }}>
+          Escolha como receber o pedido
+        </div>
+
+        <div style={{
+          background: '#fff', borderRadius: 14, overflow: 'hidden',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+        }}>
+          {opcoes.map((op, idx) => (
+            <button
+              key={op.key}
+              onClick={() => onSelect(op.key)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+                padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: idx < opcoes.length - 1 ? '1px solid #f0f0f0' : 'none',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ fontSize: 24 }}>{op.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: CORES.feldgrau }}>{op.titulo}</div>
+                {op.sub && (
+                  <div style={{ fontSize: 13, color: op.key === 'pickup' ? CORES.asparagus : '#888', marginTop: 2, fontWeight: op.key === 'pickup' ? 700 : 400 }}>
+                    {op.sub}
+                  </div>
+                )}
+              </div>
+              <span style={{ color: '#ccc', fontSize: 18 }}>›</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StepAddress({ onBack, onFound }) {
+  const [inputLocal, setInputLocal] = useState('')
+  const [buscando, setBuscando] = useState(false)
+  const [erroLocal, setErroLocal] = useState('')
+  const [buscandoGeo, setBuscandoGeo] = useState(false)
+
+  const handleBuscar = async () => {
+    const val = inputLocal.trim()
+    if (!val) return
+    setBuscando(true)
+    setErroLocal('')
+    // Tenta CEP
+    const cepResult = await buscarCep(val)
+    if (cepResult) {
+      setBuscando(false)
+      onFound({
+        logradouro: cepResult.logradouro || val,
+        numero: '', complemento: '', referencia: '', label: '',
+      })
+      return
+    }
+    // Trata como endereço livre
+    setBuscando(false)
+    onFound({ logradouro: val, numero: '', complemento: '', referencia: '', label: '' })
+  }
+
+  const handleGeolocalizacao = async () => {
+    if (!navigator.geolocation) { setErroLocal('Geolocalização não disponível.'); return }
+    setBuscandoGeo(true)
+    setErroLocal('')
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
+      setBuscandoGeo(false)
+      if (geo && geo.address) {
+        const a = geo.address
+        const rua = a.road || a.pedestrian || a.footway || ''
+        const bairro = a.suburb || a.neighbourhood || a.village || ''
+        const cidade = a.city || a.town || a.municipality || 'Sinop'
+        const estado = a.state_code || a.state || 'MT'
+        const cep = (a.postcode || '').replace(/\D/g, '')
+        onFound({
+          logradouro: rua || geo.display_name?.split(',')[0] || '',
+          numero: a.house_number || '',
+          complemento: bairro ? `${bairro}` : '',
+          referencia: '',
+          label: '',
+          cidade, estado, cep,
+        })
+      } else {
+        setErroLocal('Não foi possível obter o endereço. Tente digitar manualmente.')
+      }
+    }, () => {
+      setBuscandoGeo(false)
+      setErroLocal('Permissão de localização negada.')
+    })
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: '#fff', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.feldgrau }}>←</button>
+        <div style={{ fontWeight: 800, fontSize: 18, color: CORES.feldgrau }}>Novo Endereço</div>
+      </div>
+
+      <div style={{ padding: '28px 20px' }}>
+        <div style={{ fontWeight: 800, fontSize: 20, color: CORES.feldgrau, marginBottom: 20 }}>
+          Em qual endereço você deseja receber seu pedido?
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 700, fontSize: 13, color: '#888', display: 'block', marginBottom: 8 }}>
+            Insira seu endereço ou CEP
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={inputLocal}
+              onChange={e => setInputLocal(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleBuscar()}
+              placeholder="Ex.: Rua São João, 134 ou 78550-000"
+              style={{
+                flex: 1, padding: '13px 16px', borderRadius: 10,
+                border: '1.5px solid #d1d5db', fontSize: 15, outline: 'none',
+                fontFamily: 'inherit', color: CORES.feldgrau,
+              }}
+            />
+            <button onClick={handleBuscar} disabled={buscando} style={{
+              background: CORES.feldgrau, color: CORES.peach, border: 'none',
+              borderRadius: 10, padding: '0 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            }}>{buscando ? '...' : 'Buscar'}</button>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', color: '#bbb', fontSize: 13, marginBottom: 16 }}>ou</div>
+
+        <button onClick={handleGeolocalizacao} disabled={buscandoGeo} style={{
+          width: '100%', background: CORES.feldgrau, color: '#fff', border: 'none',
+          borderRadius: 12, padding: '15px 0', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+          marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+        }}>
+          <span>📍</span> {buscandoGeo ? 'Obtendo localização...' : 'Usar minha localização'}
+        </button>
+
+        {erroLocal && (
+          <div style={{ color: CORES.danger, fontSize: 13, background: '#fff0f0', padding: '10px 14px', borderRadius: 10, marginTop: 8 }}>
+            {erroLocal}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function StepAddressConfirm({ initialAddress, onBack, onSave }) {
+  const [form, setForm] = useState({ ...initialAddress })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSalvar = () => {
+    if (!form.logradouro.trim()) return
+    onSave(form)
+  }
+
+  const inputStyle = {
+    width: '100%', padding: '13px 16px', borderRadius: 10, boxSizing: 'border-box',
+    border: '1.5px solid #d1d5db', fontSize: 15, outline: 'none', fontFamily: 'inherit',
+    color: CORES.feldgrau, background: '#fff',
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1300, background: '#fff', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.feldgrau }}>←</button>
+        <div style={{ fontWeight: 800, fontSize: 18, color: CORES.feldgrau }}>Novo Endereço</div>
+      </div>
+
+      <div style={{ padding: '20px 20px 40px' }}>
+        <div style={{ fontWeight: 800, fontSize: 20, color: CORES.feldgrau, marginBottom: 20 }}>
+          Em qual endereço você deseja receber seu pedido?
+        </div>
+
+        {form.logradouro && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, padding: '12px 14px', background: CORES.offwhite, borderRadius: 12 }}>
+            <span>📍</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: CORES.feldgrau }}>{form.logradouro}</div>
+              {(form.cidade || form.cep) && (
+                <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>
+                  {[form.bairro, form.cidade, form.estado, form.cep].filter(Boolean).join(' · ')}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Endereço</label>
+          <input style={inputStyle} value={form.logradouro} onChange={e => set('logradouro', e.target.value)} placeholder="Rua, Avenida..." />
+        </div>
+
+        <div style={{ marginBottom: 14, display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Número *</label>
+            <input style={inputStyle} value={form.numero} onChange={e => set('numero', e.target.value)} placeholder="123" inputMode="numeric" />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: CORES.feldgrau, cursor: 'pointer', paddingBottom: 14 }}>
+              <input type="checkbox" checked={form.numero === 's/n'} onChange={e => set('numero', e.target.checked ? 's/n' : '')} />
+              Sem número
+            </label>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Complemento</label>
+          <input style={inputStyle} value={form.complemento} onChange={e => set('complemento', e.target.value)} placeholder="Casa, Apto, Sala X..." />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Ponto de referência</label>
+          <input style={inputStyle} value={form.referencia} onChange={e => set('referencia', e.target.value)} placeholder="Em frente ao..." />
+        </div>
+
+        <div style={{ marginBottom: 28 }}>
+          <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 10 }}>Nome do endereço</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['Casa', 'Trabalho', 'Amigos'].map(l => (
+              <button key={l} onClick={() => set('label', l)} style={{
+                padding: '8px 18px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                fontWeight: 600, border: `1.5px solid ${form.label === l ? CORES.feldgrau : '#d1d5db'}`,
+                background: form.label === l ? CORES.peach : '#fff',
+                color: CORES.feldgrau,
+              }}>{l}</button>
+            ))}
+          </div>
+        </div>
+
+        <button onClick={handleSalvar} style={{
+          width: '100%', background: CORES.feldgrau, color: CORES.peach,
+          border: 'none', borderRadius: 14, padding: '15px 0',
+          fontWeight: 800, fontSize: 16, cursor: 'pointer',
+        }}>Salvar</button>
+      </div>
+    </div>
+  )
+}
+
+function StepPayment({ modoEntrega, endConfirmado, itens, subtotal, total, taxaEntrega, onBack, onConfirmar, loading, erro }) {
+  const [nome, setNome] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [pagamento, setPagamento] = useState('')
+  const [obsGeral, setObsGeral] = useState('')
+
+  const inputStyle = {
+    width: '100%', padding: '13px 16px', borderRadius: 10, boxSizing: 'border-box',
+    border: '1.5px solid #d1d5db', fontSize: 15, outline: 'none',
+    fontFamily: 'inherit', color: CORES.feldgrau, background: '#fff',
+  }
+
+  const handleConfirmar = () => {
+    onConfirmar({ nome, telefone, pagamento, obs: obsGeral })
+  }
+
+  const modoLabel = {
+    delivery: 'Entrega em domicílio',
+    pickup: 'Retirada no local',
+    local: 'Consumo no local',
+  }[modoEntrega]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1400, background: CORES.offwhite, overflowY: 'auto' }}>
+      <div style={{ background: CORES.feldgrau }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px' }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.peach }}>←</button>
+          <div style={{ fontWeight: 800, fontSize: 18, color: CORES.peach }}>Finalizar pedido</div>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 20px 40px' }}>
+        {/* Modo de entrega */}
+        <div style={{
+          background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 16,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Modo de entrega</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: CORES.feldgrau }}>{modoLabel}</div>
+            {modoEntrega === 'delivery' && endConfirmado.logradouro && (
+              <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
+                {[endConfirmado.logradouro, endConfirmado.numero, endConfirmado.complemento].filter(Boolean).join(', ')}
+                {endConfirmado.referencia && <span style={{ color: '#999' }}> · {endConfirmado.referencia}</span>}
+              </div>
+            )}
+          </div>
+          <button onClick={onBack} style={{
+            background: 'none', border: `1.5px solid ${CORES.feldgrau}`, borderRadius: 8,
+            padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: CORES.feldgrau,
+          }}>Trocar</button>
+        </div>
+
+        {/* Dados do cliente */}
+        <div style={{ background: '#fff', borderRadius: 14, padding: '16px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#999', marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>Seus dados</div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Nome *</label>
+            <input style={inputStyle} placeholder="Como você se chama?" value={nome} onChange={e => setNome(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>WhatsApp *</label>
+            <input style={inputStyle} placeholder="(66) 99999-9999" value={telefone} onChange={e => setTelefone(maskPhone(e.target.value))} inputMode="numeric" />
+          </div>
+        </div>
+
+        {/* Forma de pagamento */}
+        <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ background: CORES.feldgrau, padding: '12px 16px' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: CORES.peach }}>Escolha a forma de pagamento</div>
+          </div>
+          {[
+            { k: 'Pix', icon: '💠', sub: 'Pague agora' },
+            { k: 'Dinheiro', icon: '💵', sub: 'Pagar na entrega' },
+            { k: 'Cartão Crédito', icon: '💳', sub: 'Maquininha na entrega' },
+            { k: 'Cartão Débito', icon: '💳', sub: 'Maquininha na entrega' },
+          ].map(({ k, icon, sub }, idx, arr) => (
+            <button key={k} onClick={() => setPagamento(k)} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+              padding: '14px 16px', background: pagamento === k ? '#f0f9f1' : '#fff',
+              border: 'none', borderBottom: idx < arr.length - 1 ? '1px solid #f0f0f0' : 'none',
+              cursor: 'pointer', textAlign: 'left',
+            }}>
+              <span style={{ fontSize: 22 }}>{icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: CORES.feldgrau }}>{k}</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>{sub}</div>
+              </div>
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', border: `2px solid ${pagamento === k ? CORES.asparagus : '#d1d5db'}`,
+                background: pagamento === k ? CORES.asparagus : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {pagamento === k && <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>✓</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Observações */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Observações (opcional)</label>
+          <textarea
+            style={{ ...inputStyle, height: 72, resize: 'none' }}
+            placeholder="Algum detalhe adicional para o pedido?"
+            value={obsGeral}
+            onChange={e => setObsGeral(e.target.value)}
+          />
+        </div>
+
+        {/* Totais */}
+        <div style={{
+          background: '#fff', borderRadius: 14, padding: '16px', marginBottom: 20,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: CORES.feldgrau, marginBottom: 8 }}>
+            <span>Subtotal</span>
+            <span>{fmt(subtotal)}</span>
+          </div>
+          {modoEntrega === 'delivery' && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: CORES.feldgrau, marginBottom: 8 }}>
+              <span>Taxa de entrega</span>
+              <span>{fmt(taxaEntrega)}</span>
+            </div>
+          )}
+          <div style={{ borderTop: '1px dashed #e5e7eb', marginTop: 8, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 800, fontSize: 16, color: CORES.feldgrau }}>Total</span>
+            <span style={{ fontWeight: 800, fontSize: 20, color: CORES.asparagus }}>{fmt(total)}</span>
+          </div>
+        </div>
+
+        {erro && (
+          <div style={{
+            background: '#fff0f0', border: `1px solid ${CORES.danger}`, color: CORES.danger,
+            borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14, fontWeight: 600,
+          }}>⚠️ {erro}</div>
+        )}
+
+        <button onClick={handleConfirmar} disabled={loading} style={{
+          width: '100%', background: loading ? '#9ca3af' : CORES.feldgrau,
+          color: CORES.peach, border: 'none', borderRadius: 14, padding: '15px 0',
+          fontWeight: 800, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer',
+        }}>
+          {loading ? 'Enviando...' : '✓ Confirmar Pedido'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CHECKOUT FLOW (orchestrator — no nested components)
 // ════════════════════════════════════════════════════════════════════════════
 
 function CheckoutFlow({ cart, products, onBack, onSuccess }) {
   const [step, setStep] = useState('delivery')          // delivery | address | address-confirm | payment
   const [modoEntrega, setModoEntrega] = useState(null)  // 'delivery' | 'pickup' | 'local'
-
-  // Dados de endereço
-  const [buscaEndereco, setBuscaEndereco] = useState('')
-  const [buscandoGeo, setBuscandoGeo] = useState(false)
-  const [geoErro, setGeoErro] = useState('')
   const [endConfirmado, setEndConfirmado] = useState({
     logradouro: '', numero: '', complemento: '', referencia: '', label: '',
   })
-
-  // Dados do cliente / pagamento
-  const [nome, setNome] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [pagamento, setPagamento] = useState('')
-  const [obsGeral, setObsGeral] = useState('')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -317,501 +758,95 @@ function CheckoutFlow({ cart, products, onBack, onSuccess }) {
     })
     .filter(Boolean)
 
-  // ── Etapa 1: Escolha do modo de entrega ────────────────────────────────────
-  function StepDelivery() {
-    const opcoes = [
-      {
-        key: 'delivery',
-        icon: '🏠',
-        titulo: 'Receber em casa',
-        sub: `Taxa de entrega · ${fmt(TAXA_ENTREGA)}`,
-        badge: null,
-      },
-      {
-        key: 'pickup',
-        icon: '🛍️',
-        titulo: 'Retirar no local',
-        sub: 'Grátis',
-        badge: null,
-      },
-      {
-        key: 'local',
-        icon: '🍽️',
-        titulo: 'Consumir no local',
-        sub: null,
-        badge: null,
-      },
-    ]
+  const handleSelectDelivery = (key) => {
+    setModoEntrega(key)
+    if (key === 'delivery') setStep('address')
+    else setStep('payment')
+  }
 
-    const handleSelect = (key) => {
-      setModoEntrega(key)
-      if (key === 'delivery') setStep('address')
-      else setStep('payment')
+  const handleAddressFound = (endData) => {
+    setEndConfirmado(endData)
+    setStep('address-confirm')
+  }
+
+  const handleAddressSave = (form) => {
+    setEndConfirmado(form)
+    setStep('payment')
+  }
+
+  const handleConfirmar = async ({ nome, telefone, pagamento, obs }) => {
+    if (!nome.trim()) { setErro('Informe seu nome'); return }
+    if (telefone.replace(/\D/g, '').length < 10) { setErro('Informe um WhatsApp válido'); return }
+    if (!pagamento) { setErro('Escolha a forma de pagamento'); return }
+    setLoading(true)
+    setErro('')
+    const enderecoStr = modoEntrega === 'delivery'
+      ? [endConfirmado.logradouro, endConfirmado.numero, endConfirmado.complemento, endConfirmado.referencia].filter(Boolean).join(', ')
+      : modoEntrega === 'pickup' ? 'Retirar no local' : 'Consumir no local'
+    const result = await registrarPedido({
+      itens,
+      clientName: nome.trim(),
+      phone: telefone.replace(/\D/g, ''),
+      deliveryDate: null,
+      payment: pagamento,
+      notes: ['[Menu Online]', `Entrega: ${enderecoStr}`, obs].filter(Boolean).join(' | '),
+      canal: 'direto',
+    })
+    setLoading(false)
+    if (result?.success) {
+      onSuccess(result.numeroPedido, nome.trim(), itens, total)
+    } else {
+      setErro('Erro ao registrar pedido. Tente novamente ou entre em contato pelo WhatsApp.')
     }
+  }
 
+  if (step === 'delivery') {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: CORES.offwhite, overflowY: 'auto' }}>
-        {/* Header */}
-        <div style={{ background: CORES.feldgrau, padding: '0 0 1px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px' }}>
-            <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.peach }}>←</button>
-            <div style={{ fontWeight: 800, fontSize: 18, color: CORES.peach }}>Finalizar pedido</div>
-          </div>
-        </div>
-
-        <div style={{ padding: '24px 20px' }}>
-          {/* Resumo rápido */}
-          <div style={{
-            background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 24,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-          }}>
-            <div style={{ fontWeight: 700, fontSize: 12, color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Resumo
-            </div>
-            {itens.map((it, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4, color: CORES.feldgrau }}>
-                <span>{it.qty}× {it.produto}</span>
-                <span style={{ fontWeight: 600 }}>{fmt(it.unitPrice * it.qty)}</span>
-              </div>
-            ))}
-            <div style={{ borderTop: '1px dashed #e5e7eb', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 700, color: CORES.feldgrau }}>Subtotal</span>
-              <span style={{ fontWeight: 800, color: CORES.asparagus }}>{fmt(subtotal)}</span>
-            </div>
-          </div>
-
-          {/* Escolha de entrega */}
-          <div style={{ fontWeight: 800, fontSize: 16, color: CORES.feldgrau, marginBottom: 14 }}>
-            Escolha como receber o pedido
-          </div>
-
-          <div style={{
-            background: '#fff', borderRadius: 14, overflow: 'hidden',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-          }}>
-            {opcoes.map((op, idx) => (
-              <button
-                key={op.key}
-                onClick={() => handleSelect(op.key)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer',
-                  borderBottom: idx < opcoes.length - 1 ? '1px solid #f0f0f0' : 'none',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: 24 }}>{op.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: CORES.feldgrau }}>{op.titulo}</div>
-                  {op.sub && (
-                    <div style={{ fontSize: 13, color: op.key === 'pickup' ? CORES.asparagus : '#888', marginTop: 2, fontWeight: op.key === 'pickup' ? 700 : 400 }}>
-                      {op.sub}
-                    </div>
-                  )}
-                </div>
-                <span style={{ color: '#ccc', fontSize: 18 }}>›</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <StepDelivery
+        itens={itens}
+        subtotal={subtotal}
+        onBack={onBack}
+        onSelect={handleSelectDelivery}
+      />
     )
   }
 
-  // ── Etapa 2a: Buscar endereço ───────────────────────────────────────────────
-  function StepAddress() {
-    const [inputLocal, setInputLocal] = useState(buscaEndereco)
-    const [buscando, setBuscando] = useState(false)
-    const [erroLocal, setErroLocal] = useState('')
-
-    const handleBuscar = async () => {
-      const val = inputLocal.trim()
-      if (!val) return
-      setBuscando(true)
-      setErroLocal('')
-      // Tenta CEP
-      const cepResult = await buscarCep(val)
-      if (cepResult) {
-        setEndConfirmado({
-          logradouro: cepResult.logradouro || val,
-          numero: '', complemento: '', referencia: '', label: '',
-        })
-        setBuscaEndereco(val)
-        setBuscando(false)
-        setStep('address-confirm')
-        return
-      }
-      // Trata como endereço livre
-      setEndConfirmado({ logradouro: val, numero: '', complemento: '', referencia: '', label: '' })
-      setBuscaEndereco(val)
-      setBuscando(false)
-      setStep('address-confirm')
-    }
-
-    const handleGeolocalizacao = async () => {
-      if (!navigator.geolocation) { setErroLocal('Geolocalização não disponível.'); return }
-      setBuscandoGeo(true)
-      setErroLocal('')
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
-        setBuscandoGeo(false)
-        if (geo && geo.address) {
-          const a = geo.address
-          const rua = a.road || a.pedestrian || a.footway || ''
-          const bairro = a.suburb || a.neighbourhood || a.village || ''
-          const cidade = a.city || a.town || a.municipality || 'Sinop'
-          const estado = a.state_code || a.state || 'MT'
-          const cep = (a.postcode || '').replace(/\D/g, '')
-          setEndConfirmado({
-            logradouro: rua || geo.display_name?.split(',')[0] || '',
-            numero: a.house_number || '',
-            complemento: bairro ? `${bairro}` : '',
-            referencia: '',
-            label: '',
-            cidade, estado, cep,
-          })
-          setBuscaEndereco(rua || geo.display_name?.split(',')[0] || '')
-          setStep('address-confirm')
-        } else {
-          setErroLocal('Não foi possível obter o endereço. Tente digitar manualmente.')
-        }
-      }, () => {
-        setBuscandoGeo(false)
-        setErroLocal('Permissão de localização negada.')
-      })
-    }
-
+  if (step === 'address') {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: '#fff', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
-          <button onClick={() => setStep('delivery')} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.feldgrau }}>←</button>
-          <div style={{ fontWeight: 800, fontSize: 18, color: CORES.feldgrau }}>Novo Endereço</div>
-        </div>
-
-        <div style={{ padding: '28px 20px' }}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: CORES.feldgrau, marginBottom: 20 }}>
-            Em qual endereço você deseja receber seu pedido?
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontWeight: 700, fontSize: 13, color: '#888', display: 'block', marginBottom: 8 }}>
-              Insira seu endereço ou CEP
-            </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                value={inputLocal}
-                onChange={e => setInputLocal(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleBuscar()}
-                placeholder="Ex.: Rua São João, 134 ou 78550-000"
-                style={{
-                  flex: 1, padding: '13px 16px', borderRadius: 10,
-                  border: '1.5px solid #d1d5db', fontSize: 15, outline: 'none',
-                  fontFamily: 'inherit', color: CORES.feldgrau,
-                }}
-              />
-              <button onClick={handleBuscar} disabled={buscando} style={{
-                background: CORES.feldgrau, color: CORES.peach, border: 'none',
-                borderRadius: 10, padding: '0 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-              }}>{buscando ? '...' : 'Buscar'}</button>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center', color: '#bbb', fontSize: 13, marginBottom: 16 }}>ou</div>
-
-          <button onClick={handleGeolocalizacao} disabled={buscandoGeo} style={{
-            width: '100%', background: CORES.feldgrau, color: '#fff', border: 'none',
-            borderRadius: 12, padding: '15px 0', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-            marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          }}>
-            <span>📍</span> {buscandoGeo ? 'Obtendo localização...' : 'Usar minha localização'}
-          </button>
-
-          {erroLocal && (
-            <div style={{ color: CORES.danger, fontSize: 13, background: '#fff0f0', padding: '10px 14px', borderRadius: 10, marginTop: 8 }}>
-              {erroLocal}
-            </div>
-          )}
-        </div>
-      </div>
+      <StepAddress
+        onBack={() => setStep('delivery')}
+        onFound={handleAddressFound}
+      />
     )
   }
 
-  // ── Etapa 2b: Confirmar endereço ────────────────────────────────────────────
-  function StepAddressConfirm() {
-    const [form, setForm] = useState({ ...endConfirmado })
-    const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-    const handleSalvar = () => {
-      if (!form.logradouro.trim()) return
-      setEndConfirmado(form)
-      setStep('payment')
-    }
-
-    const inputStyle = {
-      width: '100%', padding: '13px 16px', borderRadius: 10, boxSizing: 'border-box',
-      border: '1.5px solid #d1d5db', fontSize: 15, outline: 'none', fontFamily: 'inherit',
-      color: CORES.feldgrau, background: '#fff',
-    }
-
+  if (step === 'address-confirm') {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1300, background: '#fff', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
-          <button onClick={() => setStep('address')} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.feldgrau }}>←</button>
-          <div style={{ fontWeight: 800, fontSize: 18, color: CORES.feldgrau }}>Novo Endereço</div>
-        </div>
-
-        <div style={{ padding: '20px 20px 40px' }}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: CORES.feldgrau, marginBottom: 20 }}>
-            Em qual endereço você deseja receber seu pedido?
-          </div>
-
-          {form.logradouro && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20, padding: '12px 14px', background: CORES.offwhite, borderRadius: 12 }}>
-              <span>📍</span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: CORES.feldgrau }}>{form.logradouro}</div>
-                {(form.cidade || form.cep) && (
-                  <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>
-                    {[form.bairro, form.cidade, form.estado, form.cep].filter(Boolean).join(' · ')}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Endereço</label>
-            <input style={inputStyle} value={form.logradouro} onChange={e => set('logradouro', e.target.value)} placeholder="Rua, Avenida..." />
-          </div>
-
-          <div style={{ marginBottom: 14, display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Número *</label>
-              <input style={inputStyle} value={form.numero} onChange={e => set('numero', e.target.value)} placeholder="123" inputMode="numeric" />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: CORES.feldgrau, cursor: 'pointer', paddingBottom: 14 }}>
-                <input type="checkbox" checked={form.numero === 's/n'} onChange={e => set('numero', e.target.checked ? 's/n' : '')} />
-                Sem número
-              </label>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Complemento</label>
-            <input style={inputStyle} value={form.complemento} onChange={e => set('complemento', e.target.value)} placeholder="Casa, Apto, Sala X..." />
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Ponto de referência</label>
-            <input style={inputStyle} value={form.referencia} onChange={e => set('referencia', e.target.value)} placeholder="Em frente ao..." />
-          </div>
-
-          <div style={{ marginBottom: 28 }}>
-            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 10 }}>Nome do endereço</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {['Casa', 'Trabalho', 'Amigos'].map(l => (
-                <button key={l} onClick={() => set('label', l)} style={{
-                  padding: '8px 18px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
-                  fontWeight: 600, border: `1.5px solid ${form.label === l ? CORES.feldgrau : '#d1d5db'}`,
-                  background: form.label === l ? CORES.peach : '#fff',
-                  color: CORES.feldgrau,
-                }}>{l}</button>
-              ))}
-            </div>
-          </div>
-
-          <button onClick={handleSalvar} style={{
-            width: '100%', background: CORES.feldgrau, color: CORES.peach,
-            border: 'none', borderRadius: 14, padding: '15px 0',
-            fontWeight: 800, fontSize: 16, cursor: 'pointer',
-          }}>Salvar</button>
-        </div>
-      </div>
+      <StepAddressConfirm
+        initialAddress={endConfirmado}
+        onBack={() => setStep('address')}
+        onSave={handleAddressSave}
+      />
     )
   }
 
-  // ── Etapa 3: Pagamento + confirmação ────────────────────────────────────────
-  function StepPayment() {
-    const inputStyle = {
-      width: '100%', padding: '13px 16px', borderRadius: 10, boxSizing: 'border-box',
-      border: '1.5px solid #d1d5db', fontSize: 15, outline: 'none',
-      fontFamily: 'inherit', color: CORES.feldgrau, background: '#fff',
-    }
-
-    const handleConfirmar = async () => {
-      if (!nome.trim()) { setErro('Informe seu nome'); return }
-      if (telefone.replace(/\D/g, '').length < 10) { setErro('Informe um WhatsApp válido'); return }
-      if (!pagamento) { setErro('Escolha a forma de pagamento'); return }
-      setLoading(true)
-      setErro('')
-
-      const enderecoStr = modoEntrega === 'delivery'
-        ? [endConfirmado.logradouro, endConfirmado.numero, endConfirmado.complemento, endConfirmado.referencia]
-            .filter(Boolean).join(', ')
-        : modoEntrega === 'pickup' ? 'Retirar no local' : 'Consumir no local'
-
-      const notesPrefix = '[Menu Online]'
-      const notesParts = [notesPrefix, `Entrega: ${enderecoStr}`, obsGeral.trim()].filter(Boolean)
-
-      const result = await registrarPedido({
-        itens,
-        clientName:   nome.trim(),
-        phone:        telefone.replace(/\D/g, ''),
-        deliveryDate: null,
-        payment:      pagamento,
-        notes:        notesParts.join(' | '),
-        canal:        'direto',
-      })
-      setLoading(false)
-      if (result?.success) {
-        onSuccess(result.numeroPedido, nome.trim(), itens, total)
-      } else {
-        setErro('Erro ao registrar pedido. Tente novamente ou entre em contato pelo WhatsApp.')
-      }
-    }
-
-    const modoLabel = {
-      delivery: 'Entrega em domicílio',
-      pickup: 'Retirada no local',
-      local: 'Consumo no local',
-    }[modoEntrega]
-
-    const backStep = modoEntrega === 'delivery' ? 'address-confirm' : 'delivery'
-
+  if (step === 'payment') {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1400, background: CORES.offwhite, overflowY: 'auto' }}>
-        <div style={{ background: CORES.feldgrau }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px' }}>
-            <button onClick={() => setStep(backStep)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: CORES.peach }}>←</button>
-            <div style={{ fontWeight: 800, fontSize: 18, color: CORES.peach }}>Finalizar pedido</div>
-          </div>
-        </div>
-
-        <div style={{ padding: '20px 20px 40px' }}>
-          {/* Modo de entrega */}
-          <div style={{
-            background: '#fff', borderRadius: 14, padding: '14px 16px', marginBottom: 16,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <div>
-              <div style={{ fontSize: 12, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Modo de entrega</div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: CORES.feldgrau }}>{modoLabel}</div>
-              {modoEntrega === 'delivery' && endConfirmado.logradouro && (
-                <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-                  {[endConfirmado.logradouro, endConfirmado.numero, endConfirmado.complemento].filter(Boolean).join(', ')}
-                  {endConfirmado.referencia && <span style={{ color: '#999' }}> · {endConfirmado.referencia}</span>}
-                </div>
-              )}
-            </div>
-            <button onClick={() => setStep(modoEntrega === 'delivery' ? 'address-confirm' : 'delivery')} style={{
-              background: 'none', border: `1.5px solid ${CORES.feldgrau}`, borderRadius: 8,
-              padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: CORES.feldgrau,
-            }}>Trocar</button>
-          </div>
-
-          {/* Dados do cliente */}
-          <div style={{ background: '#fff', borderRadius: 14, padding: '16px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#999', marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>Seus dados</div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Nome *</label>
-              <input style={inputStyle} placeholder="Como você se chama?" value={nome} onChange={e => setNome(e.target.value)} />
-            </div>
-            <div>
-              <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>WhatsApp *</label>
-              <input style={inputStyle} placeholder="(66) 99999-9999" value={telefone} onChange={e => setTelefone(maskPhone(e.target.value))} inputMode="numeric" />
-            </div>
-          </div>
-
-          {/* Forma de pagamento */}
-          <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-            <div style={{ background: CORES.feldgrau, padding: '12px 16px' }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: CORES.peach }}>Escolha a forma de pagamento</div>
-            </div>
-            {[
-              { k: 'Pix', icon: '💠', sub: 'Pague agora' },
-              { k: 'Dinheiro', icon: '💵', sub: 'Pagar na entrega' },
-              { k: 'Cartão Crédito', icon: '💳', sub: 'Maquininha na entrega' },
-              { k: 'Cartão Débito', icon: '💳', sub: 'Maquininha na entrega' },
-            ].map(({ k, icon, sub }, idx, arr) => (
-              <button key={k} onClick={() => setPagamento(k)} style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-                padding: '14px 16px', background: pagamento === k ? '#f0f9f1' : '#fff',
-                border: 'none', borderBottom: idx < arr.length - 1 ? '1px solid #f0f0f0' : 'none',
-                cursor: 'pointer', textAlign: 'left',
-              }}>
-                <span style={{ fontSize: 22 }}>{icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: CORES.feldgrau }}>{k}</div>
-                  <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>{sub}</div>
-                </div>
-                <div style={{
-                  width: 20, height: 20, borderRadius: '50%', border: `2px solid ${pagamento === k ? CORES.asparagus : '#d1d5db'}`,
-                  background: pagamento === k ? CORES.asparagus : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {pagamento === k && <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>✓</span>}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Observações */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontWeight: 700, fontSize: 13, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>Observações (opcional)</label>
-            <textarea
-              style={{ ...inputStyle, height: 72, resize: 'none' }}
-              placeholder="Algum detalhe adicional para o pedido?"
-              value={obsGeral}
-              onChange={e => setObsGeral(e.target.value)}
-            />
-          </div>
-
-          {/* Totais */}
-          <div style={{
-            background: '#fff', borderRadius: 14, padding: '16px', marginBottom: 20,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: CORES.feldgrau, marginBottom: 8 }}>
-              <span>Subtotal</span>
-              <span>{fmt(subtotal)}</span>
-            </div>
-            {modoEntrega === 'delivery' && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: CORES.feldgrau, marginBottom: 8 }}>
-                <span>Taxa de entrega</span>
-                <span>{fmt(taxaEntrega)}</span>
-              </div>
-            )}
-            <div style={{ borderTop: '1px dashed #e5e7eb', marginTop: 8, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 800, fontSize: 16, color: CORES.feldgrau }}>Total</span>
-              <span style={{ fontWeight: 800, fontSize: 20, color: CORES.asparagus }}>{fmt(total)}</span>
-            </div>
-          </div>
-
-          {erro && (
-            <div style={{
-              background: '#fff0f0', border: `1px solid ${CORES.danger}`, color: CORES.danger,
-              borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14, fontWeight: 600,
-            }}>⚠️ {erro}</div>
-          )}
-
-          <button onClick={handleConfirmar} disabled={loading} style={{
-            width: '100%', background: loading ? '#9ca3af' : CORES.feldgrau,
-            color: CORES.peach, border: 'none', borderRadius: 14, padding: '15px 0',
-            fontWeight: 800, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer',
-          }}>
-            {loading ? 'Enviando...' : '✓ Confirmar Pedido'}
-          </button>
-        </div>
-      </div>
+      <StepPayment
+        modoEntrega={modoEntrega}
+        endConfirmado={endConfirmado}
+        itens={itens}
+        subtotal={subtotal}
+        total={total}
+        taxaEntrega={taxaEntrega}
+        onBack={() => setStep(modoEntrega === 'delivery' ? 'address-confirm' : 'delivery')}
+        onConfirmar={handleConfirmar}
+        loading={loading}
+        erro={erro}
+      />
     )
   }
 
-  // Renderiza step correto
-  if (step === 'delivery')        return <StepDelivery />
-  if (step === 'address')         return <StepAddress />
-  if (step === 'address-confirm') return <StepAddressConfirm />
-  if (step === 'payment')         return <StepPayment />
   return null
 }
 
