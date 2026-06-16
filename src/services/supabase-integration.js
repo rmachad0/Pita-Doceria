@@ -297,20 +297,22 @@ export async function carregarPedidos() {
 
 // ── Produtos (Cardápio) ────────────────────────────────────────────────────────
 
+const CDN = 'https://client-assets.anota.ai/produtos/654809e6c88d180012064a77'
+
 // Produtos padrão usados como fallback enquanto a tabela 'produtos' não está disponível na API
 const PRODUTOS_FALLBACK = [
-  { id: 1,  nome: 'Torta de Limão',     categoria: 'Tortas',  preco: 79.90, descricao: 'Torta cremosa de limão com base crocante e merengue dourado', foto_url: '', ativo: true, ordem: 1 },
-  { id: 2,  nome: 'Torta de Morango',   categoria: 'Tortas',  preco: 85.00, descricao: 'Torta com creme de baunilha e morangos frescos',              foto_url: '', ativo: true, ordem: 2 },
-  { id: 3,  nome: 'Torta de Chocolate', categoria: 'Tortas',  preco: 89.90, descricao: 'Torta intensa de chocolate belga com ganache',                foto_url: '', ativo: true, ordem: 3 },
-  { id: 4,  nome: 'Brigadeiro Gourmet', categoria: 'Doces',   preco:  5.50, descricao: 'Brigadeiro artesanal com chocolate belga e granulado crocante', foto_url: '', ativo: true, ordem: 1 },
-  { id: 5,  nome: 'Beijinho',           categoria: 'Doces',   preco:  5.00, descricao: 'Docinho de coco com cravo',                                   foto_url: '', ativo: true, ordem: 2 },
-  { id: 6,  nome: 'Trufa de Chocolate', categoria: 'Doces',   preco:  7.00, descricao: 'Trufa recheada com ganache de chocolate meio amargo',          foto_url: '', ativo: true, ordem: 3 },
-  { id: 7,  nome: 'Pão de Mel',         categoria: 'Doces',   preco:  8.00, descricao: 'Pão de mel recheado com doce de leite e coberto com chocolate', foto_url: '', ativo: true, ordem: 4 },
-  { id: 8,  nome: 'Coxinha',            categoria: 'Lanche',  preco:  9.00, descricao: 'Coxinha de frango com catupiry em massa especial',             foto_url: '', ativo: true, ordem: 1 },
-  { id: 9,  nome: 'Mini Salgados',      categoria: 'Lanche',  preco:  6.50, descricao: 'Mini salgados sortidos para festas e eventos',                 foto_url: '', ativo: true, ordem: 2 },
-  { id: 10, nome: 'Suco Natural',       categoria: 'Bebidas', preco: 12.00, descricao: 'Suco de frutas frescas da estação',                            foto_url: '', ativo: true, ordem: 1 },
-  { id: 11, nome: 'Refrigerante',       categoria: 'Bebidas', preco:  6.00, descricao: 'Lata 350ml',                                                   foto_url: '', ativo: true, ordem: 2 },
-  { id: 12, nome: 'Água',              categoria: 'Bebidas', preco:  3.00, descricao: 'Garrafa 500ml',                                                foto_url: '', ativo: true, ordem: 3 },
+  { id: 1,  nome: 'Bolo Fatia Cenoura e Brownie', categoria: 'Doces',   preco: 22.96, descricao: 'Massa de cenoura com recheio de brigadeiro gourmet e Brownie',                                                                       foto_url: `${CDN}/-1781180508767blob_600.webp`, ativo: true, ordem: 1 },
+  { id: 2,  nome: 'Bolo Fatia Tapioca',            categoria: 'Doces',   preco: 22.50, descricao: 'Bolo de Tapioca recheado com Doce de Leite e Cocada Cremosa',                                                                       foto_url: `${CDN}/-1781180678693blob_600.webp`, ativo: true, ordem: 2 },
+  { id: 3,  nome: 'Browninho',                     categoria: 'Doces',   preco: 15.00, descricao: 'Brownie com palha de leite ninho',                                                                                                   foto_url: `${CDN}/-1781181649099blob_600.webp`, ativo: true, ordem: 3 },
+  { id: 4,  nome: 'Cookies Pita',                  categoria: 'Doces',   preco: 18.00, descricao: 'Massa Baunilha com Cranberry, Amêndoas Laminadas, Gotas de Chocolate meio amargo e recheado com Chocolate meio amargo',             foto_url: `${CDN}/-1781622537717blob_600.webp`, ativo: true, ordem: 4 },
+  { id: 5,  nome: 'Mini Salgado Sortido 50un',     categoria: 'Lanche',  preco: 55.00, descricao: 'Enroladinho de salsinha, bolinha de queijo, quibe, coxinha de frango, coxinha de carne e trouxinha de presunto queijo',             foto_url: `${CDN}/-1781556960760blob_600.webp`, ativo: true, ordem: 1 },
+  { id: 6,  nome: 'Mini Salgado Sortido 100un',    categoria: 'Lanche',  preco:105.00, descricao: 'Enroladinho de salsinha, bolinha de queijo, quibe, coxinha de frango, coxinha de carne e trouxinha de presunto queijo',             foto_url: `${CDN}/-1781556960760blob_600.webp`, ativo: true, ordem: 2 },
+  { id: 7,  nome: 'Coca Cola 310ml',               categoria: 'Bebidas', preco:  6.00, descricao: 'Lata 310ml',                                                                                                                         foto_url: `${CDN}/-1781558664736blob_600.webp`, ativo: true, ordem: 1 },
+  { id: 8,  nome: 'Coca Cola Zero 310ml',          categoria: 'Bebidas', preco:  6.00, descricao: 'Lata 310ml',                                                                                                                         foto_url: `${CDN}/-1781558634667blob_600.webp`, ativo: true, ordem: 2 },
+  { id: 9,  nome: 'Fanta Uva 310ml',               categoria: 'Bebidas', preco:  6.00, descricao: 'Lata 310ml',                                                                                                                         foto_url: `${CDN}/-1781558563871blob_600.webp`, ativo: true, ordem: 3 },
+  { id: 10, nome: 'Sprite 310ml',                  categoria: 'Bebidas', preco:  6.00, descricao: 'Lata 310ml',                                                                                                                         foto_url: `${CDN}/-1781558600889blob_600.webp`, ativo: true, ordem: 4 },
+  { id: 11, nome: 'Guaraná Antártica',             categoria: 'Bebidas', preco:  5.00, descricao: 'Lata 310ml',                                                                                                                         foto_url: `${CDN}/-1781558740100blob_600.webp`, ativo: true, ordem: 5 },
+  { id: 12, nome: 'Água Mineral Puríssima 497ml',  categoria: 'Bebidas', preco:  4.00, descricao: 'Garrafa 497ml',                                                                                                                       foto_url: `${CDN}/-1781558801716blob_600.webp`, ativo: true, ordem: 6 },
 ]
 
 export async function listarProdutos({ apenasAtivos = false } = {}) {
