@@ -142,7 +142,119 @@ const maskPhone = (v) => {
 
 // ── Componentes ──────────────────────────────────────────────────────────────
 
-function ProductCard({ item, qty, onAdd, onRemove }) {
+function ProductDetailDrawer({ item, qty, onAdd, onRemove, onClose }) {
+  const [obs, setObs] = useState('')
+  const [localQty, setLocalQty] = useState(qty || 1)
+
+  const handleAdicionar = () => {
+    for (let i = 0; i < localQty; i++) onAdd({ ...item, obs })
+    onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 900, display: 'flex', flexDirection: 'column' }}>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ flex: 1, background: 'rgba(0,0,0,0.5)' }} />
+
+      {/* Painel deslizante de baixo */}
+      <div style={{
+        background: '#fff',
+        borderRadius: '20px 20px 0 0',
+        maxHeight: '88vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.18)',
+      }}>
+        {/* Foto grande */}
+        <div style={{ position: 'relative', height: 240, background: '#f3ede7', flexShrink: 0 }}>
+          {item.foto ? (
+            <img src={item.foto} alt={item.nome}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 72 }}>🍰</span>
+            </div>
+          )}
+          {/* Botão fechar */}
+          <button onClick={onClose} style={{
+            position: 'absolute', top: 12, right: 14,
+            width: 34, height: 34, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.45)', border: 'none',
+            color: '#fff', fontSize: 18, cursor: 'pointer', fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>✕</button>
+        </div>
+
+        {/* Conteúdo scrollável */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '20px 20px 0' }}>
+          <div style={{ fontWeight: 800, fontSize: 20, color: CORES.feldgrau, lineHeight: 1.3 }}>
+            {item.nome}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 22, color: CORES.asparagus, marginTop: 6 }}>
+            {fmt(item.preco)}
+          </div>
+          {item.descricao && (
+            <div style={{ fontSize: 14, color: '#666', marginTop: 10, lineHeight: 1.6 }}>
+              {item.descricao}
+            </div>
+          )}
+
+          {/* Observação */}
+          <div style={{ marginTop: 20 }}>
+            <label style={{ fontWeight: 700, fontSize: 14, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>
+              💬 Alguma observação?
+            </label>
+            <textarea
+              value={obs}
+              onChange={e => setObs(e.target.value)}
+              placeholder="Ex: sem amendoas, ponto da carne, sabor preferido..."
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '11px 14px', borderRadius: 10, border: '1.5px solid #d1d5db',
+                fontSize: 14, resize: 'none', height: 80, fontFamily: 'inherit',
+                color: CORES.feldgrau, outline: 'none',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Rodapé fixo: qtd + adicionar */}
+        <div style={{ padding: '16px 20px 28px', borderTop: '1px solid #f0f0f0', background: '#fff', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Controle de qtd */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: CORES.offwhite, borderRadius: 12, padding: '6px 12px' }}>
+              <button onClick={() => setLocalQty(q => Math.max(1, q - 1))} style={{
+                width: 30, height: 30, borderRadius: 8,
+                border: `2px solid ${CORES.peach}`, background: 'white',
+                fontWeight: 700, fontSize: 18, cursor: 'pointer', color: CORES.feldgrau,
+              }}>−</button>
+              <span style={{ fontWeight: 800, fontSize: 18, minWidth: 24, textAlign: 'center', color: CORES.feldgrau }}>
+                {localQty}
+              </span>
+              <button onClick={() => setLocalQty(q => q + 1)} style={{
+                width: 30, height: 30, borderRadius: 8,
+                background: CORES.peach, border: 'none',
+                fontWeight: 700, fontSize: 18, cursor: 'pointer', color: CORES.feldgrau,
+              }}>+</button>
+            </div>
+
+            {/* Botão adicionar */}
+            <button onClick={handleAdicionar} style={{
+              flex: 1, background: CORES.feldgrau, color: CORES.peach,
+              border: 'none', borderRadius: 12, padding: '13px 0',
+              fontWeight: 800, fontSize: 16, cursor: 'pointer',
+            }}>
+              Adicionar · {fmt(item.preco * localQty)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProductCard({ item, qty, onAdd, onRemove, onOpenDetail }) {
   return (
     <div style={{
       background: '#fff',
@@ -152,8 +264,8 @@ function ProductCard({ item, qty, onAdd, onRemove }) {
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* Foto ou placeholder */}
-      <div style={{
+      {/* Foto clicável */}
+      <div onClick={() => onOpenDetail(item)} style={{
         background: item.foto ? 'transparent' : '#f3ede7',
         height: 140,
         display: 'flex',
@@ -161,6 +273,7 @@ function ProductCard({ item, qty, onAdd, onRemove }) {
         justifyContent: 'center',
         position: 'relative',
         overflow: 'hidden',
+        cursor: 'pointer',
       }}>
         {item.foto ? (
           <img src={item.foto} alt={item.nome}
@@ -171,6 +284,12 @@ function ProductCard({ item, qty, onAdd, onRemove }) {
             <div style={{ fontSize: 11, marginTop: 4 }}>sem foto</div>
           </div>
         )}
+        {/* Indicador de toque */}
+        <div style={{
+          position: 'absolute', bottom: 6, right: 8,
+          background: 'rgba(0,0,0,0.35)', borderRadius: 6,
+          padding: '2px 7px', fontSize: 10, color: '#fff', fontWeight: 600,
+        }}>ver mais</div>
       </div>
 
       {/* Info */}
@@ -179,7 +298,8 @@ function ProductCard({ item, qty, onAdd, onRemove }) {
           {item.nome}
         </div>
         {item.descricao && (
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 4, lineHeight: 1.4,
+            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
             {item.descricao}
           </div>
         )}
@@ -191,7 +311,7 @@ function ProductCard({ item, qty, onAdd, onRemove }) {
       {/* Controle de quantidade */}
       <div style={{ padding: '0 14px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         {qty === 0 ? (
-          <button onClick={() => onAdd(item)} style={{
+          <button onClick={() => onOpenDetail(item)} style={{
             flex: 1,
             background: CORES.peach,
             color: CORES.feldgrau,
@@ -562,10 +682,11 @@ function SuccessScreen({ numeroPedido, nome, itens, total, onNew }) {
 // ── Página principal ─────────────────────────────────────────────────────────
 export default function MenuPage() {
   const [cart, setCart]           = useState({})
-  const [cartOpen, setCartOpen]   = useState(false)
-  const [checkout, setCheckout]   = useState(false)
-  const [success, setSuccess]     = useState(null) // { numeroPedido, nome, itens, total }
-  const [activecat, setActivecat] = useState(null)
+  const [cartOpen, setCartOpen]       = useState(false)
+  const [checkout, setCheckout]       = useState(false)
+  const [success, setSuccess]         = useState(null)
+  const [activecat, setActivecat]     = useState(null)
+  const [detailItem, setDetailItem]   = useState(null)
 
   const allProducts = useMemo(() =>
     CARDAPIO.flatMap(c => c.itens), [])
@@ -741,6 +862,7 @@ export default function MenuPage() {
                   qty={cart[item.id] || 0}
                   onAdd={add}
                   onRemove={remove}
+                  onOpenDetail={setDetailItem}
                 />
               ))}
             </div>
@@ -804,6 +926,17 @@ export default function MenuPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Drawer detalhe do produto */}
+      {detailItem && (
+        <ProductDetailDrawer
+          item={detailItem}
+          qty={cart[detailItem.id] || 0}
+          onAdd={add}
+          onRemove={remove}
+          onClose={() => setDetailItem(null)}
+        />
       )}
 
       {/* Carrinho drawer */}
