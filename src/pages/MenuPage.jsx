@@ -166,42 +166,49 @@ function ProductDetailDrawer({ item, qty, onAdd, onRemove, onClose }) {
         overflow: 'hidden',
         boxShadow: '0 -4px 24px rgba(0,0,0,0.18)',
       }}>
-        {/* Foto grande */}
-        <div style={{ position: 'relative', height: 180, background: '#f3ede7', flexShrink: 0 }}>
-          {item.foto ? (
-            <img src={item.foto} alt={item.nome}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
-          ) : (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 72 }}>🍰</span>
+        {/* Header: foto pequena + info + botão fechar */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '18px 18px 14px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+          {/* Foto pequena */}
+          <div style={{
+            width: 90, height: 90, borderRadius: 12, overflow: 'hidden',
+            background: '#f3ede7', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {item.foto
+              ? <img src={item.foto} alt={item.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: 36 }}>🍰</span>
+            }
+          </div>
+
+          {/* Nome e preço */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 17, color: CORES.feldgrau, lineHeight: 1.3 }}>
+              {item.nome}
             </div>
-          )}
+            <div style={{ fontWeight: 800, fontSize: 20, color: CORES.asparagus, marginTop: 4 }}>
+              {fmt(item.preco)}
+            </div>
+          </div>
+
           {/* Botão fechar */}
           <button onClick={onClose} style={{
-            position: 'absolute', top: 12, right: 14,
-            width: 34, height: 34, borderRadius: '50%',
-            background: 'rgba(0,0,0,0.45)', border: 'none',
-            color: '#fff', fontSize: 18, cursor: 'pointer', fontWeight: 700,
+            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+            background: '#f0f0f0', border: 'none',
+            color: CORES.feldgrau, fontSize: 16, cursor: 'pointer', fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>✕</button>
         </div>
 
         {/* Conteúdo scrollável */}
-        <div style={{ overflowY: 'auto', flex: 1, padding: '20px 20px 0' }}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: CORES.feldgrau, lineHeight: 1.3 }}>
-            {item.nome}
-          </div>
-          <div style={{ fontWeight: 800, fontSize: 22, color: CORES.asparagus, marginTop: 6 }}>
-            {fmt(item.preco)}
-          </div>
+        <div style={{ overflowY: 'auto', flex: 1, padding: '16px 18px 0' }}>
           {item.descricao && (
-            <div style={{ fontSize: 14, color: '#666', marginTop: 10, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 14, color: '#666', lineHeight: 1.6 }}>
               {item.descricao}
             </div>
           )}
 
           {/* Observação */}
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 16 }}>
             <label style={{ fontWeight: 700, fontSize: 14, color: CORES.feldgrau, display: 'block', marginBottom: 6 }}>
               💬 Alguma observação?
             </label>
