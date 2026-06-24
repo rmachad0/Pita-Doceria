@@ -3,7 +3,7 @@ import {
   Target, TrendingUp, DollarSign, ShoppingBag, Clock,
   CheckCircle, AlertTriangle, Settings2, ChevronDown, ChevronUp,
   BarChart3, Zap, Award, RefreshCw, Loader, Package, XCircle,
-  Minus, Store, Bike, AlertCircle, Plus, Trash2,
+  Minus, Store, Bike, AlertCircle, Plus, Trash2, Truck, Star,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, Cell,
@@ -41,11 +41,14 @@ const brl = (v) =>
     .format(isNaN(v) || !isFinite(v) ? 0 : v)
 
 const STATUS_META = {
-  'Recebido':   { bg: '#e8f0fe', color: '#1a73e8', Icon: ShoppingBag },
-  'Em Preparo': { bg: '#f3e5f5', color: '#7b1fa2', Icon: Package },
-  'Pendente':   { bg: '#fff8e1', color: '#e65100', Icon: AlertTriangle },
-  'Pronto':     { bg: '#e8f5e9', color: '#2e7d32', Icon: CheckCircle },
-  'Cancelado':  { bg: '#ffebee', color: '#c62828', Icon: XCircle },
+  'Recebido':          { bg: '#e8f0fe', color: '#1a73e8', Icon: ShoppingBag },
+  'Confirmado':        { bg: '#e8f0fe', color: '#1565c0', Icon: Package },
+  'Em Preparo':        { bg: '#f3e5f5', color: '#7b1fa2', Icon: Package },
+  'Pendente':          { bg: '#fff8e1', color: '#e65100', Icon: AlertTriangle },
+  'Pronto':            { bg: '#e8f5e9', color: '#2e7d32', Icon: CheckCircle },
+  'Saiu para Entrega': { bg: '#e3f2fd', color: '#0277bd', Icon: Truck },
+  'Entregue':          { bg: '#f1f8e9', color: '#33691e', Icon: Star },
+  'Cancelado':         { bg: '#ffebee', color: '#c62828', Icon: XCircle },
 }
 
 // ── Custom Tooltip ────────────────────────────────────────────────────────────
@@ -163,8 +166,8 @@ export default function Dashboard() {
   const dayOfMonth = now.getDate()
 
   // ── Derived data ──────────────────────────────────────────────────────────
-  const { active, monthly, today, statusSummary, chartData, canalSplit } = useMemo(() => {
-    // active: não cancelados → usado no painel operacional
+  const { active, activeToday, monthly, today, statusSummary, statusSummaryToday, chartData, canalSplit } = useMemo(() => {
+    // active: não cancelados → base para painel operacional
     const active = pedidos.filter(p => p['Status'] !== 'Cancelado')
 
     // billable: só "Recebido" → base de todo faturamento
@@ -187,10 +190,20 @@ export default function Dashboard() {
 
     const today = billable.filter(p => datePart(p['Data/Hora']) === todayStr)
 
+    // activeToday: pedidos de hoje não cancelados → painel operacional
+    const activeToday = active.filter(p => datePart(p['Data/Hora']) === todayStr)
+
     const statusSummary = Object.keys(STATUS_META).map(s => ({
       status: s,
       count:  pedidos.filter(p => p['Status'] === s).length,
       value:  pedidos.filter(p => p['Status'] === s)
+                .reduce((sum, p) => sum + (parseFloat(p['Valor Total']) || 0), 0),
+    }))
+
+    const statusSummaryToday = Object.keys(STATUS_META).map(s => ({
+      status: s,
+      count:  activeToday.filter(p => p['Status'] === s).length,
+      value:  activeToday.filter(p => p['Status'] === s)
                 .reduce((sum, p) => sum + (parseFloat(p['Valor Total']) || 0), 0),
     }))
 
@@ -221,7 +234,7 @@ export default function Dashboard() {
       },
     }
 
-    return { active, monthly, today, statusSummary, chartData, canalSplit }
+    return { active, activeToday, monthly, today, statusSummary, statusSummaryToday, chartData, canalSplit }
   }, [pedidos, curMonth, curYear, todayStr])
 
   // ── Goals ─────────────────────────────────────────────────────────────────
@@ -817,8 +830,8 @@ export default function Dashboard() {
               Painel Operacional
             </p>
             <p className="text-[10px]" style={{ color: C.textMuted }}>
-              {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} no total ·{' '}
-              {brl(active.reduce((s, p) => s + (parseFloat(p['Valor Total']) || 0), 0))} em aberto
+              {activeToday.length} pedido{activeToday.length !== 1 ? 's' : ''} hoje ·{' '}
+              {brl(activeToday.reduce((s, p) => s + (parseFloat(p['Valor Total']) || 0), 0))} em aberto
             </p>
           </div>
         </div>
@@ -830,7 +843,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-            {statusSummary.map(({ status, count, value }) => {
+            {statusSummaryToday.map(({ status, count, value }) => {
               const meta = STATUS_META[status] || { bg: C.grayLt, color: C.textMuted, Icon: ShoppingBag }
               const { Icon } = meta
               return (
